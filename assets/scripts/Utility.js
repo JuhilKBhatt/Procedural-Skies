@@ -1,5 +1,5 @@
 // Utility.js
-import * as THREE from './build/three.module.js';
+import * as THREE from 'three';
 
 /// Function to generate a random color
 export function getSimilarColour(color, variation = 0.2) {
