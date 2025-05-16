@@ -7,6 +7,7 @@ export function generateTerrain(scene) {
   const geometry = new THREE.PlaneGeometry(100, 100, 100, 100);
   const scale = 0.05;
 
+  // Generate terrain height
   for (let i = 0; i < geometry.attributes.position.count; i++) {
     const x = geometry.attributes.position.getX(i) * scale;
     const y = geometry.attributes.position.getY(i) * scale;
@@ -20,8 +21,8 @@ export function generateTerrain(scene) {
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
-  // Populate the world with trees and rocks
-  populateWorld(scene);
+  // Populate the world with trees and rocks, passing the terrain mesh
+  populateWorld(scene, mesh);
 
   return mesh;
 }
