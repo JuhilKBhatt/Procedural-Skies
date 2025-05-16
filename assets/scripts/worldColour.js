@@ -32,16 +32,16 @@ export function colorTerrain(geometry) {
     let baseColor;
 
     // Smoothly blend between different terrain types
-    if (height < 3) {
+    if (height < 4) {
         const t = THREE.MathUtils.clamp(height / 3, 0, 1);
         baseColor = lerpColor(waterColor, beachColor, t);
-    } else if (height < 3) {
+    } else if (height < 5) {
         const t = THREE.MathUtils.clamp((height - 0) / 3, 0, 1);
         baseColor = lerpColor(beachColor, grassLowColor, t);
-    } else if (height < 8) {
+    } else if (height < 9) {
         const t = THREE.MathUtils.clamp((height - 3) / 5, 0, 1);
         baseColor = lerpColor(grassLowColor, grassHighColor, t);
-    } else if (height < 10) {
+    } else if (height < 11) {
         const t = THREE.MathUtils.clamp((height - 8) / 2, 0, 1);
         baseColor = lerpColor(grassHighColor, rockColor, t);
     } else {

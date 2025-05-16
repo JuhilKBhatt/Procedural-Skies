@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 
 /**
- * Populates the scene with trees and rocks asynchronously to reduce lag.
+ * Populates the scene with trees, rocks, and seaweed asynchronously to reduce lag.
  * @param {THREE.Scene} scene - The Three.js scene object.
  * @param {THREE.Mesh} terrain - The generated terrain mesh.
  */
@@ -17,6 +17,10 @@ export function populateWorld(scene, terrain) {
     'assets/models/rock/Rock4.fbx', 'assets/models/rock/Rock5.fbx', 'assets/models/rock/Rock6.fbx'
   ];
 
+  const seaWeedModels = [
+    'assets/models/river/SeaWeed1.fbx', 'assets/models/river/SeaWeed2.fbx'
+  ];
+
   // Calculate terrain size
   const boundingBox = new THREE.Box3().setFromObject(terrain);
   const terrainWidth = boundingBox.max.x - boundingBox.min.x;
@@ -24,9 +28,6 @@ export function populateWorld(scene, terrain) {
 
   // Dynamic cluster settings based on terrain size
   const clusterCount = Math.floor((terrainWidth * terrainDepth) / 1000) + Math.floor(Math.random() * 25);
-  const treesPerCluster = Math.floor(Math.random() * 100) + 100;
-  const clusterRadius = Math.random() * 10 + 5;
-
   const batchSize = 20;  // Number of objects loaded per batch
   let currentCluster = 0;
   let currentTree = 0;
@@ -41,27 +42,56 @@ export function populateWorld(scene, terrain) {
       const centerX = (Math.random() - 0.5) * terrainWidth;
       const centerZ = (Math.random() - 0.5) * terrainDepth;
 
-      for (; currentTree < treesPerCluster; currentTree++) {
+      // Perform raycasting to find the height at the center
+      const raycaster = new THREE.Raycaster(
+        new THREE.Vector3(centerX, 100, centerZ), // Start ray from above
+        new THREE.Vector3(0, -1, 0)   // Pointing downward
+      );
+      const intersects = raycaster.intersectObject(terrain);
+
+      if (intersects.length === 0) continue;
+      const height = intersects[0].point.y;
+
+      // Decide what to spawn based on the height
+      let models;
+      let density;
+
+      if (height < 3) {
+        // Spawn only seaweed in water areas (height < 3)
+        models = seaWeedModels;
+        density = Math.floor(Math.random() * 20) + 20; // Moderate density for underwater plants
+      } else {
+        // Higher altitudes: fewer trees, more rocks
+        const isHighAltitude = height > 8;
+        const treeProbability = isHighAltitude ? 0.2 : 0.7;
+
+        // Mix trees and rocks based on altitude
+        models = Math.random() < treeProbability ? treeModels : rockModels;
+        density = isHighAltitude ? 20 : Math.floor(Math.random() * 100) + 100;
+      }
+
+      const clusterRadius = Math.random() * 10 + 5;
+
+      for (; currentTree < density; currentTree++) {
         // Random offset within the cluster radius
         const angle = Math.random() * 2 * Math.PI;
         const radius = Math.random() * clusterRadius;
         const x = centerX + Math.cos(angle) * radius;
         const z = centerZ + Math.sin(angle) * radius;
 
-        // Calculate height using raycasting to align the model with the terrain
-        const raycaster = new THREE.Raycaster(
-          new THREE.Vector3(x, 100, z), // Start ray from above
-          new THREE.Vector3(0, -1, 0)   // Pointing downward
+        // Raycast again for the specific model position
+        const ray = new THREE.Raycaster(
+          new THREE.Vector3(x, 100, z),
+          new THREE.Vector3(0, -1, 0)
         );
-        const intersects = raycaster.intersectObject(terrain);
+        const hit = ray.intersectObject(terrain);
 
-        let y = 0; // Default to ground level if no intersection found
-        if (intersects.length > 0) {
-          y = intersects[0].point.y; // Set y to intersection height
+        let y = 0;  // Default ground level if no intersection found
+        if (hit.length > 0) {
+          y = hit[0].point.y;
         }
 
-        // Randomly choose between tree and rock models
-        const models = Math.random() > 0.3 ? treeModels : rockModels;
+        // Randomly select a model from the chosen category
         const modelPath = models[Math.floor(Math.random() * models.length)];
 
         // Place the model at the calculated position
