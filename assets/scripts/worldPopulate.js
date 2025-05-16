@@ -17,14 +17,20 @@ export function populateWorld(scene, terrain) {
     'assets/models/rock/Rock4.fbx', 'assets/models/rock/Rock5.fbx', 'assets/models/rock/Rock6.fbx'
   ];
 
-  const clusterCount = 10; // Number of forest clusters
-  const treesPerCluster = 200; // Trees per cluster
-  const clusterRadius = 10; // Radius of each cluster
+  // Calculate terrain size
+  const boundingBox = new THREE.Box3().setFromObject(terrain);
+  const terrainWidth = boundingBox.max.x - boundingBox.min.x;
+  const terrainDepth = boundingBox.max.z - boundingBox.min.z;
+
+  // Dynamic cluster settings based on terrain size
+  const clusterCount = Math.floor((terrainWidth * terrainDepth) / 1000) + Math.floor(Math.random() * 25);
+  const treesPerCluster = Math.floor(Math.random() * 100) + 100;
+  const clusterRadius = Math.random() * 10 + 5;
 
   for (let i = 0; i < clusterCount; i++) {
-    // Random center for the cluster
-    const centerX = (Math.random() - 0.5) * 80;
-    const centerZ = (Math.random() - 0.5) * 80;
+    // Random center for each cluster within terrain bounds
+    const centerX = (Math.random() - 0.5) * terrainWidth;
+    const centerZ = (Math.random() - 0.5) * terrainDepth;
 
     for (let j = 0; j < treesPerCluster; j++) {
       // Random offset within the cluster radius
@@ -46,10 +52,10 @@ export function populateWorld(scene, terrain) {
       }
 
       // Randomly choose between tree and rock models
-      const models = Math.random() > 0.5 ? treeModels : rockModels;
+      const models = Math.random() > 0.3 ? treeModels : rockModels;
       const modelPath = models[Math.floor(Math.random() * models.length)];
 
-      // Corrected position (x, y, z) for placing the objects
+      // Place the model at the calculated position
       loadFBXModel(modelPath, new THREE.Vector3(x, y, z), scene);
     }
   }
