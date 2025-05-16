@@ -16,11 +16,15 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7.5).normalize();
 scene.add(light);
 
-const terrain = generateTerrain();
+const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white light
+scene.add(ambientLight);
+
+const terrain = generateTerrain(scene);
 scene.add(terrain);
 
 // Set camera to look at a 45-degree angle
-camera.position.set(0, -100, 0);
+camera.position.set(0, 100, 0);
+camera.position.y = 50; // Adjust height
 camera.lookAt(0, 0, 0);
 
 function animate() {
