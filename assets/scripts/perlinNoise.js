@@ -1,5 +1,4 @@
 // perlinNoise.js
-
 class PerlinNoise {
     constructor(seed = Math.random()) {
         this.p = new Uint8Array(512);

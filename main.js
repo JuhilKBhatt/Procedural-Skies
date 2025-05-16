@@ -13,18 +13,18 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 7.5).normalize();
+light.position.set(50, 100, 50).normalize();
 scene.add(light);
 
 const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white light
 scene.add(ambientLight);
 
+// Generate terrain and add it to the scene
 const terrain = generateTerrain(scene);
 scene.add(terrain);
 
-// Set camera to look at a 45-degree angle
-camera.position.set(0, 100, 0);
-camera.position.y = 50; // Adjust height
+// Set camera to look at a 45-degree angle from above
+camera.position.set(50, 50, 50);
 camera.lookAt(0, 0, 0);
 
 function animate() {

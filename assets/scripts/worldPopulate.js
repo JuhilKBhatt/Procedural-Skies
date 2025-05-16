@@ -1,6 +1,7 @@
 // worldPopulate.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
+import { multiOctavePerlinNoise3D } from './perlinNoise.js';
 
 /**
  * Populates the scene with trees and rocks.
@@ -30,6 +31,7 @@ export function populateWorld(scene) {
     const models = Math.random() > 0.5 ? treeModels : rockModels;
     const modelPath = models[Math.floor(Math.random() * models.length)];
 
+    // Corrected position (x, y, z) for placing the objects
     loadFBXModel(modelPath, new THREE.Vector3(x, y, z), scene);
   }
 }
