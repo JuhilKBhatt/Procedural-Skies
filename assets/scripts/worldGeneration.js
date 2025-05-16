@@ -11,7 +11,7 @@ export function generateTerrain(scene) {
   for (let i = 0; i < geometry.attributes.position.count; i++) {
     const x = geometry.attributes.position.getX(i) * scale;
     const y = geometry.attributes.position.getY(i) * scale;
-    const z = multiOctavePerlinNoise3D(x, y, 0.5, 5, 0.5, 2.0) * 15;
+    const z = multiOctavePerlinNoise3D(x, y, 2, 8, 0.1, 1.5) * 15;
     geometry.attributes.position.setZ(i, z);
   }
   geometry.computeVertexNormals();
