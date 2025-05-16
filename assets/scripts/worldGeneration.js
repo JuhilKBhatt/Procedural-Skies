@@ -16,7 +16,7 @@ export function generateTerrain(scene) {
   geometry.computeVertexNormals();
   geometry.rotateX(-Math.PI / 2);
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x228B22, wireframe: true});
+  const material = new THREE.MeshStandardMaterial({ color: 0x228B22 });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
@@ -28,7 +28,7 @@ export function generateTerrain(scene) {
     'assets/models/rock/Rock7.fbx', 'assets/models/rock/Rock8.fbx', 'assets/models/rock/Rock9.fbx'
   ];
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 200; i++) {
     const x = (Math.random() - 0.5) * 80;
     const y = (Math.random() - 0.5) * 80;
     const z = multiOctavePerlinNoise3D(x * scale, y * scale, 0) * 10;

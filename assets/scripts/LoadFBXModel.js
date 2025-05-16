@@ -8,7 +8,7 @@ import { FBXLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/
  * @param {number} [scale=1] - Uniform scale factor for the model.
  * @param {function} [onLoaded] - Callback function when the model is loaded.
  */
-function loadFBXModel(modelPath, location, scene, scale = 0.01, onLoaded) {
+function loadFBXModel(modelPath, location, scene, scale = 0.0005, onLoaded) {
     const loader = new FBXLoader();
 
     loader.load(
