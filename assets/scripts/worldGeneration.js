@@ -1,7 +1,7 @@
-// worldGeneration.js
 import * as THREE from 'three';
 import { multiOctavePerlinNoise3D } from './perlinNoise.js';
 import { populateWorld } from './worldPopulate.js';
+import { colorTerrain } from './worldColour.js';
 
 export function generateTerrain(scene) {
   const geometry = new THREE.PlaneGeometry(100, 100, 100, 100);
@@ -17,7 +17,11 @@ export function generateTerrain(scene) {
   geometry.computeVertexNormals();
   geometry.rotateX(-Math.PI / 2);
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+  // Apply colors to the terrain
+  colorTerrain(geometry);
+
+  // Use vertex colors in the material
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true });
   const mesh = new THREE.Mesh(geometry, material);
   scene.add(mesh);
 
