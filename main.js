@@ -12,9 +12,16 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 7.5).normalize();
+scene.add(light);
+
 const terrain = generateTerrain();
 scene.add(terrain);
-camera.position.set(0, 50, 100);
+
+// Set camera to look at a 45-degree angle
+camera.position.set(0, -100, 0);
+camera.lookAt(0, 0, 0);
 
 function animate() {
   requestAnimationFrame(animate);
