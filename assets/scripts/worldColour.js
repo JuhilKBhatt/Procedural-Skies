@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getSimilarColour } from './Utility.js';
+import { getSimilarColour, lerpColor } from './Utility.js';
 
 /**
  * Linearly interpolates between two colors.
@@ -8,9 +8,6 @@ import { getSimilarColour } from './Utility.js';
  * @param {number} t - Interpolation factor (0 to 1).
  * @returns {THREE.Color} - The interpolated color.
  */
-function lerpColor(color1, color2, t) {
-  return color1.clone().lerp(color2, t);
-}
 
 /**
  * Applies smooth blended colors to the terrain based on height with variation.
@@ -35,30 +32,25 @@ export function colorTerrain(geometry) {
     let baseColor;
 
     // Smoothly blend between different terrain types
-    if (height < 5) {
-      // Water to Beach (Smooth transition)
-      const t = Math.max(0, height / 3);
-      baseColor = lerpColor(waterColor, beachColor, t);
-    } else if (height < 7) {
-      // Beach to Low Grass
-      const t = (height - 3);
-      baseColor = lerpColor(beachColor, grassLowColor, t);
-    } else if (height < 7) {
-      // Low Grass to High Grass
-      const t = (height - 4) / 2;
-      baseColor = lerpColor(grassLowColor, grassHighColor, t);
-    } else if (height < 7) {
-      // High Grass to Rock
-      const t = (height - 6) / 2;
-      baseColor = lerpColor(grassHighColor, rockColor, t);
+    if (height < 3) {
+        const t = THREE.MathUtils.clamp(height / 3, 0, 1);
+        baseColor = lerpColor(waterColor, beachColor, t);
+    } else if (height < 3) {
+        const t = THREE.MathUtils.clamp((height - 0) / 3, 0, 1);
+        baseColor = lerpColor(beachColor, grassLowColor, t);
+    } else if (height < 8) {
+        const t = THREE.MathUtils.clamp((height - 3) / 5, 0, 1);
+        baseColor = lerpColor(grassLowColor, grassHighColor, t);
+    } else if (height < 10) {
+        const t = THREE.MathUtils.clamp((height - 8) / 2, 0, 1);
+        baseColor = lerpColor(grassHighColor, rockColor, t);
     } else {
-      // Rock to Snow
-      const t = Math.min((height - 8) / 4, 1);
-      baseColor = lerpColor(rockColor, snowColor, t);
+        const t = THREE.MathUtils.clamp((height - 10) / 4, 0, 1);
+        baseColor = lerpColor(rockColor, snowColor, t);
     }
 
     // Add a slight random variation to the base color
-    const variedColor = new THREE.Color(getSimilarColour(baseColor.getHex(), 0.02));
+    const variedColor = new THREE.Color(getSimilarColour(baseColor.getHex(), 0.005));
 
     colors.push(variedColor.r, variedColor.g, variedColor.b);
   }

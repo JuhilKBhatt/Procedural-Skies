@@ -18,3 +18,7 @@ export function getSimilarColour(color, variation = 0.2) {
     const newColor = new THREE.Color().setHSL(newHue, newSaturation, newLightness);
     return newColor.getHex();
 }
+
+export function lerpColor(color1, color2, t) {
+  return color1.clone().lerp(color2, t);
+}
