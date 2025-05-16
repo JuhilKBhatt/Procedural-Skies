@@ -9,21 +9,19 @@ export function colorTerrain(geometry) {
   const position = geometry.attributes.position;
 
   for (let i = 0; i < position.count; i++) {
-    const height = position.getZ(i);
+    // Since the geometry is rotated, height is stored in the Y position
+    const height = position.getY(i);
 
     let color;
-    if (height < 2) {
+    if (height < 4) {
       // Water (deep blue)
       color = new THREE.Color(0x1e3d59);
     } else if (height < 5) {
       // Beach (sand)
       color = new THREE.Color(0xc2b280);
-    } else if (height < 8) {
+    } else if (height < 7) {
       // Grassland (green)
       color = new THREE.Color(0x228B22);
-    } else if (height < 12) {
-      // Rocky (gray)
-      color = new THREE.Color(0x808080);
     } else {
       // Snowy peaks (white)
       color = new THREE.Color(0xffffff);
