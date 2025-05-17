@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 
 let airplane;
-let cameraOffset = new THREE.Vector3(0, 5, -15); // Camera offset behind the airplane
+const cameraOffset = new THREE.Vector3(0, 10, -20); // Camera offset behind the airplane
 
 /**
  * Loads the airplane model and sets up the camera for a 3rd person perspective.
@@ -10,7 +10,7 @@ let cameraOffset = new THREE.Vector3(0, 5, -15); // Camera offset behind the air
  * @param {THREE.Camera} camera - The camera to set in the 3rd person perspective.
  */
 export function loadAirplane(scene, camera) {
-    const airplanePosition = new THREE.Vector3(0, 10, 0); // Initial position of the airplane
+    const airplanePosition = new THREE.Vector3(0, 20, 0); // Higher initial position to avoid ground collision
 
     loadFBXModel('assets/models/airplane/Airplane.fbx', airplanePosition, scene, 0.01, (object) => {
         airplane = object;
@@ -31,11 +31,13 @@ export function loadAirplane(scene, camera) {
 export function updateCameraPosition(camera) {
     if (!airplane) return;
 
+    // Calculate the new camera position
     const airplanePosition = airplane.position.clone();
-    const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion); // Offset relative to the airplane's rotation
+    const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion);
 
+    // Update camera position and orientation
     camera.position.copy(airplanePosition.add(offset));
-    camera.lookAt(airplane.position);
+    camera.lookAt(airplane.position.clone().add(new THREE.Vector3(0, 5, 0))); // Look slightly above the airplane
 }
 
 /**

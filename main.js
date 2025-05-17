@@ -9,10 +9,6 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// OrbitControls setup
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(50, 100, 50).normalize();
@@ -43,9 +39,9 @@ window.addEventListener('keyup', (event) => {
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = 0.016; // Approximate frame time (60 FPS)
+    
     updateAirplane(deltaTime, input);
     updateCameraPosition(camera);
-    controls.update();
     renderer.render(scene, camera);
 }
 animate();
