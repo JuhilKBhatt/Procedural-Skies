@@ -17,27 +17,42 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(50, 100, 50).normalize();
 scene.add(light);
 
-const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white light
+const ambientLight = new THREE.AmbientLight(0x404040, 2);
 scene.add(ambientLight);
 
-// Generate terrain and add it to the scene
 const terrain = generateTerrain(scene);
 scene.add(terrain);
 
-// Create and add the airplane to the scene
 const airplane = createAirplane(scene);
 
-// Set camera to look at a 45-degree angle from above
+// Keyboard control
+window.addEventListener('keydown', (event) => {
+  switch (event.key) {
+    case 'ArrowUp':
+      airplane.speed = Math.min(airplane.speed + 0.01, airplane.maxSpeed);
+      break;
+    case 'ArrowDown':
+      airplane.speed = Math.max(airplane.speed - 0.01, 0);
+      break;
+    case 'ArrowLeft':
+      airplane.rotation.y += 0.05;
+      break;
+    case 'ArrowRight':
+      airplane.rotation.y -= 0.05;
+      break;
+  }
+});
+
 camera.position.set(0, 50, 50);
 
 function animate() {
   requestAnimationFrame(animate);
+  airplane.updatePosition();
   controls.update();
   renderer.render(scene, camera);
 }
 animate();
 
-// Resize handler
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
