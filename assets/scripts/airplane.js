@@ -1,3 +1,4 @@
+// airplane.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 import { animateAirplaneTail } from './airplaneAnimate.js';
@@ -13,6 +14,9 @@ export function createAirplane(scene) {
     airplane.maxSpeed = 1;
     airplane.speedIncrement = 0.01;
     airplane.velocity = new THREE.Vector3();
+
+    // Tail animation parameter
+    airplane.targetTailRotationZ = 0; // Add this line to store the target tail rotation
 
     // Update airplane position based on velocity
     airplane.updatePosition = function () {

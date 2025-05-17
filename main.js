@@ -36,12 +36,27 @@ window.addEventListener('keydown', (event) => {
       break;
     case 'ArrowLeft':
       airplane.rotation.y += 0.05;
+      // Set the target tail rotation for left turn
+      airplane.targetTailRotationZ = 0.5; // Adjust this value for desired left rotation amount
       break;
     case 'ArrowRight':
       airplane.rotation.y -= 0.05;
+      // Set the target tail rotation for right turn
+      airplane.targetTailRotationZ = -0.5; // Adjust this value for desired right rotation amount
       break;
   }
 });
+
+window.addEventListener('keyup', (event) => {
+    switch (event.key) {
+        case 'ArrowLeft':
+        case 'ArrowRight':
+            // Reset the target tail rotation when arrow keys are released
+            airplane.targetTailRotationZ = 0;
+            break;
+    }
+});
+
 
 camera.position.set(0, 50, 50);
 
