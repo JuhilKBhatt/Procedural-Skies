@@ -48,6 +48,7 @@ camera.position.set(0, 50, 50);
 function animate() {
   requestAnimationFrame(animate);
   airplane.updatePosition();
+  airplane.animateTail();
   controls.update();
   renderer.render(scene, camera);
 }

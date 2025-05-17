@@ -1,6 +1,6 @@
-// airplane.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
+import { animateAirplaneTail } from './airplaneAnimate.js';
 
 export function createAirplane(scene) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
@@ -24,6 +24,11 @@ export function createAirplane(scene) {
         const direction = new THREE.Vector3(Math.sin(this.rotation.y), 0, Math.cos(this.rotation.y));
         this.velocity.copy(direction.multiplyScalar(forward * this.speed));
         this.velocity.x += sideways * this.speed;
+    };
+
+    // Animate airplane tail by calling the imported function
+    airplane.animateTail = function () {
+        animateAirplaneTail(this);
     };
 
     scene.add(airplane);
