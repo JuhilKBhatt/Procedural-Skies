@@ -27,10 +27,8 @@ scene.add(terrain);
 // Create and add the airplane to the scene
 const airplane = createAirplane(scene);
 
-
 // Set camera to look at a 45-degree angle from above
-camera.position.set(50, 50, 50);
-camera.lookAt(0, 0, 0);
+camera.position.set(0, 50, 50);
 
 function animate() {
   requestAnimationFrame(animate);
