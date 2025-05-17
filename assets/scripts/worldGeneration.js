@@ -4,7 +4,7 @@ import { populateWorld } from './worldPopulate.js';
 import { colorTerrain } from './worldColour.js';
 
 export function generateTerrain(scene) {
-  const geometry = new THREE.PlaneGeometry(100, 100, 100, 100);
+  const geometry = new THREE.PlaneGeometry(200, 200, 200, 200);
   const scale = 0.05;
 
   // Generate terrain height

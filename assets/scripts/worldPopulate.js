@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 
 /**
- * Populates the scene with trees, rocks, and seaweed asynchronously to reduce lag.
+ * Populates the scene with trees, rocks, and seaweed asynchronously based on terrain color.
  * @param {THREE.Scene} scene - The Three.js scene object.
  * @param {THREE.Mesh} terrain - The generated terrain mesh.
  */
@@ -21,58 +21,76 @@ export function populateWorld(scene, terrain) {
     'assets/models/river/SeaWeed1.fbx', 'assets/models/river/SeaWeed2.fbx'
   ];
 
+  // Terrain color categories
+  const waterColor = new THREE.Color(0x1e3d59);   // Deep Blue
+  const beachColor = new THREE.Color(0xc2b280);   // Sand
+  const grassLowColor = new THREE.Color(0x2e8b57); // Dark Green
+  const grassHighColor = new THREE.Color(0x3cb371); // Light Green
+  const rockColor = new THREE.Color(0x808080);    // Gray
+  const snowColor = new THREE.Color(0xffffff);    // White
+
   // Calculate terrain size
   const boundingBox = new THREE.Box3().setFromObject(terrain);
   const terrainWidth = boundingBox.max.x - boundingBox.min.x;
   const terrainDepth = boundingBox.max.z - boundingBox.min.z;
 
-  // Dynamic cluster settings based on terrain size
-  const clusterCount = Math.floor((terrainWidth * terrainDepth) / 1000) + Math.floor(Math.random() * 25);
   const batchSize = 20;  // Number of objects loaded per batch
   let currentCluster = 0;
-  let currentTree = 0;
 
   function loadNextBatch() {
-    if (currentCluster >= clusterCount) return;
+    if (currentCluster >= 100) return;  // Limit clusters to avoid overload
 
     for (let b = 0; b < batchSize; b++) {
-      if (currentCluster >= clusterCount) break;
+      if (currentCluster >= 100) break;
 
       // Random center for each cluster within terrain bounds
       const centerX = (Math.random() - 0.5) * terrainWidth;
       const centerZ = (Math.random() - 0.5) * terrainDepth;
 
-      // Perform raycasting to find the height at the center
+      // Raycasting to find the height and color at the center
       const raycaster = new THREE.Raycaster(
-        new THREE.Vector3(centerX, 100, centerZ), // Start ray from above
-        new THREE.Vector3(0, -1, 0)   // Pointing downward
+        new THREE.Vector3(centerX, 100, centerZ),
+        new THREE.Vector3(0, -1, 0)
       );
       const intersects = raycaster.intersectObject(terrain);
 
       if (intersects.length === 0) continue;
-      const height = intersects[0].point.y;
+      const intersection = intersects[0];
+      const y = intersection.point.y;
 
-      // Decide what to spawn based on the height
-      let models;
-      let density;
+      // Get the vertex color at the intersection point
+      const color = new THREE.Color();
+      const colorArray = terrain.geometry.attributes.color.array;
+      const vertexIndex = intersection.face.a * 3;
+      color.setRGB(
+        colorArray[vertexIndex],
+        colorArray[vertexIndex + 1],
+        colorArray[vertexIndex + 2]
+      );
 
-      if (height < 3) {
-        // Spawn only seaweed in water areas (height < 3)
+      let models = [];
+      let density = 0;
+
+      // Model selection based on color
+      if (color.equals(waterColor)) {
         models = seaWeedModels;
-        density = Math.floor(Math.random() * 20) + 20; // Moderate density for underwater plants
-      } else {
-        // Higher altitudes: fewer trees, more rocks
-        const isHighAltitude = height > 8;
-        const treeProbability = isHighAltitude ? 0.2 : 0.7;
-
-        // Mix trees and rocks based on altitude
-        models = Math.random() < treeProbability ? treeModels : rockModels;
-        density = isHighAltitude ? 20 : Math.floor(Math.random() * 100) + 100;
+        density = Math.floor(Math.random() * 20) + 20;
+      } else if (color.equals(beachColor)) {
+        continue; // No objects on the beach
+      } else if (color.equals(grassLowColor) || color.equals(grassHighColor)) {
+        models = Math.random() < 0.7 ? treeModels : rockModels;
+        density = Math.floor(Math.random() * 50) + 50;
+      } else if (color.equals(rockColor)) {
+        models = rockModels;
+        density = Math.floor(Math.random() * 20) + 10;
+      } else if (color.equals(snowColor)) {
+        continue; // No objects on snow
       }
 
+      // Cluster parameters
       const clusterRadius = Math.random() * 10 + 5;
 
-      for (; currentTree < density; currentTree++) {
+      for (let t = 0; t < density; t++) {
         // Random offset within the cluster radius
         const angle = Math.random() * 2 * Math.PI;
         const radius = Math.random() * clusterRadius;
@@ -86,19 +104,18 @@ export function populateWorld(scene, terrain) {
         );
         const hit = ray.intersectObject(terrain);
 
-        let y = 0;  // Default ground level if no intersection found
+        let finalY = 0;  // Default ground level if no intersection found
         if (hit.length > 0) {
-          y = hit[0].point.y;
+          finalY = hit[0].point.y;
         }
 
         // Randomly select a model from the chosen category
         const modelPath = models[Math.floor(Math.random() * models.length)];
 
         // Place the model at the calculated position
-        loadFBXModel(modelPath, new THREE.Vector3(x, y, z), scene);
+        loadFBXModel(modelPath, new THREE.Vector3(x, finalY, z), scene);
       }
 
-      currentTree = 0;
       currentCluster++;
     }
 
