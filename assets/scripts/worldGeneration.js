@@ -26,7 +26,7 @@ export function generateTerrain(scene) {
   scene.add(mesh);
 
   // Populate the world with trees and rocks, passing the terrain mesh
-  populateWorld(scene, mesh);
+  // populateWorld(scene, mesh);
 
   return mesh;
 }
