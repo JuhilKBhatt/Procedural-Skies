@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { generateCombinedTerrain } from './perlinNoise.js';
 import { calculateVertexColor } from './worldColour.js';
+import { populateWorld } from './worldPopulate.js';
 
-export function generateTerrain() { // Removed 'scene' argument as it's not used
+export function generateTerrain(scene) { // Added 'scene' argument
     const terrainSize = 500; // Width and depth of the terrain plane
     const terrainSegments = 128; // Number of segments (resolution WxH) - higher means more detail
     const terrainMaxHeight = 50; // Maximum peak height of the terrain
@@ -57,6 +58,9 @@ export function generateTerrain() { // Removed 'scene' argument as it's not used
     // Enable shadows for the terrain
     terrainMesh.castShadow = true;
     terrainMesh.receiveShadow = true;
+
+    scene.add(terrainMesh);
+    populateWorld(scene, terrainMesh);
 
     return terrainMesh;
 }

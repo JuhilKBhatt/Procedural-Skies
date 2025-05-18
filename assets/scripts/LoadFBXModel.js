@@ -5,7 +5,7 @@ import { FBXLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/
  * @param {string} modelPath - Path to the FBX model file.
  * @param {THREE.Vector3} location - Position to place the model.
  * @param {THREE.Scene} scene - The scene to add the model to.
- * @param {number} [scale=1] - Uniform scale factor for the model.
+ * @param {number} [scale=0.0005] - Uniform scale factor for the model.
  * @param {function} [onLoaded] - Callback function when the model is loaded.
  */
 function loadFBXModel(modelPath, location, scene, scale = 0.0005, onLoaded) {
