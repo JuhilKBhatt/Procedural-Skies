@@ -100,7 +100,7 @@ window.addEventListener('keyup', (event) => {
 // Initial camera position (will be updated by follow logic)
 camera.position.set(0, -100, -60); // Adjusted for a better initial view
 
-const cameraOffset = new THREE.Vector3(0, 30, -50); // Adjusted offset: Y higher, Z further back
+const cameraOffset = new THREE.Vector3(0, 180, -280); // Adjusted offset: Y higher, Z further back
 
 function animate() {
     requestAnimationFrame(animate);

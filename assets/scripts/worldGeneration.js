@@ -7,15 +7,14 @@ import { populateWorld } from './worldPopulate.js';
 export function generateTerrain(scene) { // Added 'scene' argument
     const terrainSize = 1000; // Width and depth of the terrain plane
     const terrainSegments = 200; // Number of segments (resolution WxH) - higher means more detail
-    const terrainMaxHeight = 50; // Maximum peak height of the terrain
+    const terrainMaxHeight = 100; // Maximum peak height of the terrain
     const terrainMinHeight = -20; // Minimum depth (e.g., for river beds or deep water)
 
     const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
     const vertices = geometry.attributes.position.array;
     const colors = []; // Array to hold vertex colors
 
-    const noiseInputScale = 0.005; // Scale for world coordinates before passing to noise function
-                                  // Adjust this to change the "zoom" of the terrain features
+    const noiseInputScale = 0.0025; // Scale for world coordinates before passing to noise function
 
     for (let i = 0; i < vertices.length; i += 3) {
         // vertices are [x1, y1, z1, x2, y2, z2, ...]
@@ -25,7 +24,6 @@ export function generateTerrain(scene) { // Added 'scene' argument
         const worldY = vertices[i + 1];
 
         // Calculate normalized height (0 to 1) using Perlin noise combination
-        // The z-coordinate for noise input can be 0 if we want a 2D slice of 3D noise.
         const normalizedHeight = generateCombinedTerrain(worldX * noiseInputScale, worldY * noiseInputScale, 0);
 
         // Apply actual height: map normalizedHeight (0-1) to the desired range [terrainMinHeight, terrainMaxHeight]
