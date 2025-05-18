@@ -49,8 +49,7 @@ const ambientLight = new THREE.AmbientLight(0x606080, 1.0); // Softer ambient li
 scene.add(ambientLight);
 
 // Terrain Generation
-const terrain = generateTerrain(); // Call without scene argument
-scene.add(terrain);
+const terrain = generateTerrain(scene);
 
 // Airplane (assuming createAirplane correctly positions the airplane and adds it to scene)
 const airplane = createAirplane(scene);

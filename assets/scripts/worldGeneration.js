@@ -5,16 +5,16 @@ import { calculateVertexColor } from './worldColour.js';
 import { populateWorld } from './worldPopulate.js';
 
 export function generateTerrain(scene) { // Added 'scene' argument
-    const terrainSize = 500; // Width and depth of the terrain plane
-    const terrainSegments = 128; // Number of segments (resolution WxH) - higher means more detail
+    const terrainSize = 1000; // Width and depth of the terrain plane
+    const terrainSegments = 200; // Number of segments (resolution WxH) - higher means more detail
     const terrainMaxHeight = 50; // Maximum peak height of the terrain
-    const terrainMinHeight = -15; // Minimum depth (e.g., for river beds or deep water)
+    const terrainMinHeight = -20; // Minimum depth (e.g., for river beds or deep water)
 
     const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
     const vertices = geometry.attributes.position.array;
     const colors = []; // Array to hold vertex colors
 
-    const noiseInputScale = 0.015; // Scale for world coordinates before passing to noise function
+    const noiseInputScale = 0.005; // Scale for world coordinates before passing to noise function
                                   // Adjust this to change the "zoom" of the terrain features
 
     for (let i = 0; i < vertices.length; i += 3) {
@@ -44,7 +44,6 @@ export function generateTerrain(scene) { // Added 'scene' argument
     const material = new THREE.MeshPhongMaterial({
         vertexColors: true, // Enable vertex colors
         shininess: 5,       // Lower shininess for more diffuse terrain
-        // side: THREE.DoubleSide, // Useful for debugging or if camera can go below terrain
     });
 
     const terrainMesh = new THREE.Mesh(geometry, material);
@@ -52,15 +51,14 @@ export function generateTerrain(scene) { // Added 'scene' argument
     // Rotate the plane to be horizontal (XZ plane in world space)
     // PlaneGeometry is created in the XY plane. Rotating -90 degrees around X makes Y axis point up.
     terrainMesh.rotation.x = -Math.PI / 2;
-    // terrainMesh.position.y = 0; // Adjust if necessary, but plane is centered at origin by default.
-                                 // After rotation, its center is (0,0,0). Heights are relative to this.
+    terrainMesh.position.y = 0;
 
     // Enable shadows for the terrain
     terrainMesh.castShadow = true;
     terrainMesh.receiveShadow = true;
 
     scene.add(terrainMesh);
-    populateWorld(scene, terrainMesh);
+    //populateWorld(scene, terrainMesh);
 
     return terrainMesh;
 }
