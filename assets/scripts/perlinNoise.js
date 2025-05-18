@@ -153,13 +153,10 @@ export function generateCombinedTerrain(x, y, z, mountain_threshold = 0.6, river
     const riverMask = generateRiverMaskNoise(x, y, z);
 
     // Apply river carving
-    // river_threshold: if riverMask is below this, carve a river.
-    // river_depth: how much to lower the terrain (as a fraction of total possible height variation before scaling).
     if (riverMask < river_threshold) {
-        // riverInfluence: 1 when riverMask is 0, 0 when riverMask is river_threshold
         const riverInfluence = 1.0 - (riverMask / river_threshold);
         terrainHeight -= riverInfluence * river_depth; // Reduce height to carve river
-        terrainHeight = Math.max(terrainHeight, 0); // Clamp to ensure height doesn't go below 0 (normalized)
+        terrainHeight = Math.max(terrainHeight, 0);
     }
 
     return Math.max(0, Math.min(1, terrainHeight)); // Final clamp to [0, 1]

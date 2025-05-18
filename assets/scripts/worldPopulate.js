@@ -35,7 +35,9 @@ export function populateWorld(scene, terrain) {
     function loadNextBatch() {
         if (currentCluster >= totalClusters) return;
 
+        // Load a batch of models
         for (let b = 0; b < batchSize; b++) {
+            // Randomly select a model from the combined list
             if (currentCluster >= totalClusters) break;
 
             const centerX = (Math.random() - 0.5) * terrainWidth;

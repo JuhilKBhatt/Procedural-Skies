@@ -17,7 +17,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// OrbitControls (optional, for debugging camera, can be disabled if fixed follow cam is preferred)
+// OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -33,13 +33,13 @@ light.castShadow = true; // Enable shadow casting for this light
 scene.add(light);
 
 // Configure shadow properties for the directional light
-light.shadow.mapSize.width = 4096; // Higher resolution for sharper shadows
+light.shadow.mapSize.width = 4096;
 light.shadow.mapSize.height = 4096;
 light.shadow.camera.near = 50;
 light.shadow.camera.far = 1000;
 
 // Adjust the shadow camera frustum to cover the terrain area effectively
-const shadowCamSize = 350; // This should roughly match or exceed terrainSize / 2
+const shadowCamSize = 350;
 light.shadow.camera.left = -shadowCamSize;
 light.shadow.camera.right = shadowCamSize;
 light.shadow.camera.top = shadowCamSize;
@@ -97,14 +97,13 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
-// Initial camera position (will be updated by follow logic)
-camera.position.set(0, -100, -60); // Adjusted for a better initial view
-
-const cameraOffset = new THREE.Vector3(0, 180, -280); // Adjusted offset: Y higher, Z further back
+// Initial camera position
+camera.position.set(0, -100, -60);
+const cameraOffset = new THREE.Vector3(0, 180, -280);
 
 function animate() {
     requestAnimationFrame(animate);
-    controls.update(); // Required if enableDamping or autoRotate is true
+    controls.update();
 
     if (airplane) {
         airplane.updateSpeed(airplane.speed, 0);
