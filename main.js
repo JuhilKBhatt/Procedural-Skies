@@ -29,30 +29,41 @@ const airplane = createAirplane(scene);
 window.addEventListener('keydown', (event) => {
   switch (event.key) {
     case 'ArrowUp':
+      // Increase speed
       airplane.speed = Math.min(airplane.speed + 0.01, airplane.maxSpeed);
+      // Set target elevator rotation for nose down (assuming positive x rotates elevator down)
+      airplane.targetElevatorRotationX = 0.3; // Adjust value for desired rotation amount
       break;
     case 'ArrowDown':
+      // Decrease speed
       airplane.speed = Math.max(airplane.speed - 0.01, 0);
+      // Set target elevator rotation for nose up (assuming positive x rotates elevator down)
+      airplane.targetElevatorRotationX = -0.3; // Adjust value for desired rotation amount
       break;
     case 'ArrowLeft':
       airplane.rotation.y += 0.05;
-      // Set the target tail rotation for left turn
-      airplane.targetTailRotationZ = 0.5; // Adjust this value for desired left rotation amount
+      // Set the target rudder rotation for left turn (assuming positive z rotates rudder left)
+      airplane.targetRudderRotationZ = 0.5; // Adjust this value for desired left rotation amount
       break;
     case 'ArrowRight':
       airplane.rotation.y -= 0.05;
-      // Set the target tail rotation for right turn
-      airplane.targetTailRotationZ = -0.5; // Adjust this value for desired right rotation amount
+      // Set the target rudder rotation for right turn (assuming positive z rotates rudder right)
+      airplane.targetRudderRotationZ = -0.5; // Adjust this value for desired right rotation amount
       break;
   }
 });
 
 window.addEventListener('keyup', (event) => {
     switch (event.key) {
+        case 'ArrowUp':
+        case 'ArrowDown':
+            // Reset target elevator rotation when arrow keys are released
+            airplane.targetElevatorRotationX = 0;
+            break;
         case 'ArrowLeft':
         case 'ArrowRight':
-            // Reset the target tail rotation when arrow keys are released
-            airplane.targetTailRotationZ = 0;
+            // Reset the target rudder rotation when arrow keys are released
+            airplane.targetRudderRotationZ = 0;
             break;
     }
 });
@@ -63,7 +74,8 @@ camera.position.set(0, 50, 50);
 function animate() {
   requestAnimationFrame(animate);
   airplane.updatePosition();
-  airplane.animateTail();
+  airplane.animateRudder(); // Call rudder animation
+  airplane.animateElevator(); // Call elevator animation
   controls.update();
   renderer.render(scene, camera);
 }

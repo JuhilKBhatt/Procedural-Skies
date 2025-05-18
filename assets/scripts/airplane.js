@@ -1,7 +1,7 @@
 // airplane.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
-import { animateAirplaneTail } from './airplaneAnimate.js';
+import { animateAirplaneRudder, animateAirplaneElevator } from './airplaneAnimate.js';
 
 export function createAirplane(scene) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
@@ -15,8 +15,11 @@ export function createAirplane(scene) {
     airplane.speedIncrement = 0.01;
     airplane.velocity = new THREE.Vector3();
 
-    // Tail animation parameter
-    airplane.targetTailRotationZ = 0; // Add this line to store the target tail rotation
+    // Rudder animation parameter (renamed for clarity)
+    airplane.targetRudderRotationZ = 0; // Add this line to store the target rudder rotation
+
+    // Elevator animation parameter
+    airplane.targetElevatorRotationX = 0; // Add this line to store the target elevator rotation
 
     // Update airplane position based on velocity
     airplane.updatePosition = function () {
@@ -30,10 +33,16 @@ export function createAirplane(scene) {
         this.velocity.x += sideways * this.speed;
     };
 
-    // Animate airplane tail by calling the imported function
-    airplane.animateTail = function () {
-        animateAirplaneTail(this);
+    // Animate airplane rudder by calling the imported function (renamed method)
+    airplane.animateRudder = function () {
+        animateAirplaneRudder(this);
     };
+
+    // Animate airplane elevator by calling the imported function (new method)
+    airplane.animateElevator = function () {
+        animateAirplaneElevator(this);
+    };
+
 
     scene.add(airplane);
     return airplane;
