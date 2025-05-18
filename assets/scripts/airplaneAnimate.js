@@ -18,7 +18,7 @@ export function animateAirplaneElevator(airplane) {
     const elevator = airplane.getObjectByName('Plane001');
     if (!elevator) return;
 
-    elevator.rotation.y = THREE.MathUtils.lerp(elevator.rotation.x, airplane.targetElevatorRotationX, lerpFactor);
+    elevator.rotation.x = THREE.MathUtils.lerp(elevator.rotation.x, airplane.targetElevatorRotationX, lerpFactor);
 }
 
 export function animateAirplaneEngine(airplane, speed) {

@@ -1,6 +1,6 @@
 // main.js
 import * as THREE from 'three';
-import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
+// import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 
@@ -9,9 +9,6 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(50, 100, 50).normalize();
@@ -61,9 +58,25 @@ window.addEventListener('keyup', (event) => {
 });
 
 // Initial camera position - this will be overwritten in the animate loop
-camera.position.set(0, 50, 50);
+camera.position.set(0, -50, -50);
 
-const cameraOffset = new THREE.Vector3(0, 5, -10);
+const cameraOffset = new THREE.Vector3(0, 50, -40);
+
+// Zoom parameters
+const zoomSensitivity = 0.5;
+const minZoomDistance = -5;  
+const maxZoomDistance = -50; 
+
+// Mouse wheel event listener for zooming
+window.addEventListener('wheel', (event) => {
+    cameraOffset.z += event.deltaY * zoomSensitivity * 0.01; // Multiply by 0.01 for smoother zoom
+
+    // Clamp the cameraOffset.z value within the defined zoom limits
+    cameraOffset.z = Math.max(maxZoomDistance, Math.min(minZoomDistance, cameraOffset.z));
+
+    // Prevent default scrolling behavior
+    event.preventDefault();
+});
 
 function animate() {
     requestAnimationFrame(animate);
@@ -84,13 +97,11 @@ function animate() {
     const desiredCameraPosition = airplanePosition.clone().add(rotatedCameraOffset);
 
     // Smoothly move the camera towards the desired position
-    const cameraLerpFactor = 0.05;
+    const cameraLerpFactor = 0.05; // Adjust for smoother or faster camera follow
     camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
 
     // Make the camera look at the airplane
     camera.lookAt(airplanePosition);
-
-    controls.update();
     renderer.render(scene, camera);
 }
 animate();
