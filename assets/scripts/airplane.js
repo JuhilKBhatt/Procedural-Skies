@@ -15,11 +15,11 @@ export function createAirplane(scene) {
     airplane.speedIncrement = 0.01;
     airplane.velocity = new THREE.Vector3();
 
-    // Rudder animation parameter (renamed for clarity)
-    airplane.targetRudderRotationZ = 0; // Add this line to store the target rudder rotation
+    // Rudder animation parameter
+    airplane.targetRudderRotationZ = 0;
 
     // Elevator animation parameter
-    airplane.targetElevatorRotationX = 0; // Add this line to store the target elevator rotation
+    airplane.targetElevatorRotationX = 0;
 
     // Update airplane position based on velocity
     airplane.updatePosition = function () {
@@ -33,19 +33,19 @@ export function createAirplane(scene) {
         this.velocity.x += sideways * this.speed;
     };
 
-    // Animate airplane rudder by calling the imported function (renamed method)
+    // Animate airplane rudder by calling the imported function
     airplane.animateRudder = function () {
         animateAirplaneRudder(this);
     };
 
-    // Animate airplane elevator by calling the imported function (new method)
+    // Animate airplane elevator by calling the imported function
     airplane.animateElevator = function () {
         animateAirplaneElevator(this);
     };
 
-    // Animate airplane engine (pass speed to the animation function)
+    // Animate airplane engine
     airplane.animateEngine = function () {
-        animateAirplaneEngine(this, this.speed); // Pass the current speed
+        animateAirplaneEngine(this, this.speed);
     };
 
     scene.add(airplane);
