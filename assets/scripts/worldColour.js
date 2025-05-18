@@ -1,60 +1,51 @@
+// worldColour.js
 import * as THREE from 'three';
-import { getSimilarColour, lerpColor } from './Utility.js';
 
-/**
- * Linearly interpolates between two colors.
- * @param {THREE.Color} color1 - The first color.
- * @param {THREE.Color} color2 - The second color.
- * @param {number} t - Interpolation factor (0 to 1).
- * @returns {THREE.Color} - The interpolated color.
- */
+// Define colors for different elevation levels
+export const colorWaterDeep = new THREE.Color(0x003366);   // Dark Blue
+export const colorWaterShallow = new THREE.Color(0x007bff); // Light Blue
+export const colorSand = new THREE.Color(0xf4a460);      // Sandy Brown
+export const colorGrass = new THREE.Color(0x228b22);      // Forest Green
+export const colorDirt = new THREE.Color(0x8b4513);        // Saddle Brown / Dirt
+export const colorRock = new THREE.Color(0x808080);        // Gray
+export const colorSnow = new THREE.Color(0xfffafa);        // Snow White
 
-/**
- * Applies smooth blended colors to the terrain based on height with variation.
- * @param {THREE.Geometry} geometry - The geometry of the terrain.
- */
-export function colorTerrain(geometry) {
-  const colors = [];
-  const position = geometry.attributes.position;
+// Define normalized height thresholds for different terrain types/colors
+// These thresholds are for the noise value that comes from generateCombinedTerrain (0 to 1)
+export const normalizedWaterLevel = 0.20;
+export const normalizedSandLevel = 0.25;
+export const normalizedGrassLevel = 0.50;
+export const normalizedRockLevel = 0.70;
+// Snow will be above rock level
 
-  // Define gradient stops for better blending
-  const waterColor = new THREE.Color(0x1e3d59);   // Deep Blue
-  const beachColor = new THREE.Color(0xc2b280);   // Sand
-  const grassLowColor = new THREE.Color(0x2e8b57); // Dark Green (Low altitude)
-  const grassHighColor = new THREE.Color(0x3cb371); // Light Green (High altitude)
-  const rockColor = new THREE.Color(0x808080);    // Gray
-  const snowColor = new THREE.Color(0xffffff);    // White
-
-  for (let i = 0; i < position.count; i++) {
-    // Since the geometry is rotated, height is stored in the Y position
-    const height = position.getY(i);
-
-    let baseColor;
-
-    // Smoothly blend between different terrain types
-    if (height < 4) {
-        const t = THREE.MathUtils.clamp(height / 3, 0, 1);
-        baseColor = lerpColor(waterColor, beachColor, t);
-    } else if (height < 5) {
-        const t = THREE.MathUtils.clamp((height - 0) / 3, 0, 1);
-        baseColor = lerpColor(beachColor, grassLowColor, t);
-    } else if (height < 9) {
-        const t = THREE.MathUtils.clamp((height - 3) / 5, 0, 1);
-        baseColor = lerpColor(grassLowColor, grassHighColor, t);
-    } else if (height < 11) {
-        const t = THREE.MathUtils.clamp((height - 8) / 2, 0, 1);
-        baseColor = lerpColor(grassHighColor, rockColor, t);
-    } else {
-        const t = THREE.MathUtils.clamp((height - 10) / 4, 0, 1);
-        baseColor = lerpColor(rockColor, snowColor, t);
+export function calculateVertexColor(normalizedHeight) {
+    let r, g, b;
+    if (normalizedHeight < normalizedWaterLevel) {
+        const factor = normalizedHeight / normalizedWaterLevel; // 0 to 1
+        const waterColor = new THREE.Color().lerpColors(colorWaterDeep, colorWaterShallow, factor);
+        r = waterColor.r; g = waterColor.g; b = waterColor.b;
+    } else if (normalizedHeight < normalizedSandLevel) {
+        const factor = (normalizedHeight - normalizedWaterLevel) / (normalizedSandLevel - normalizedWaterLevel);
+        const sandColor = new THREE.Color().lerpColors(colorWaterShallow, colorSand, factor); // Smooth transition from shallow water
+        r = sandColor.r; g = sandColor.g; b = sandColor.b;
+    } else if (normalizedHeight < normalizedGrassLevel) {
+        const factor = (normalizedHeight - normalizedSandLevel) / (normalizedGrassLevel - normalizedSandLevel);
+        const grassColor = new THREE.Color().lerpColors(colorSand, colorGrass, factor);
+        r = grassColor.r; g = grassColor.g; b = grassColor.b;
+    } else if (normalizedHeight < normalizedRockLevel) {
+        const factor = (normalizedHeight - normalizedGrassLevel) / (normalizedRockLevel - normalizedGrassLevel);
+        // For a more complex Grass -> Dirt -> Rock:
+        if (factor < 0.5) { // Grass to Dirt
+            const dirtColor = new THREE.Color().lerpColors(colorGrass, colorDirt, factor * 2);
+             r = dirtColor.r; g = dirtColor.g; b = dirtColor.b;
+        } else { // Dirt to Rock
+            const rockColorActual = new THREE.Color().lerpColors(colorDirt, colorRock, (factor - 0.5) * 2);
+             r = rockColorActual.r; g = rockColorActual.g; b = rockColorActual.b;
+        }
+    } else { // Rock to Snow
+        const factor = (normalizedHeight - normalizedRockLevel) / (1.0 - normalizedRockLevel); // Ensure factor is 0-1 for this range
+        const snowColor = new THREE.Color().lerpColors(colorRock, colorSnow, Math.min(factor,1)); // Clamp factor to avoid issues if normalizedHeight > 1
+        r = snowColor.r; g = snowColor.g; b = snowColor.b;
     }
-
-    // Add a slight random variation to the base color
-    const variedColor = new THREE.Color(getSimilarColour(baseColor.getHex(), 0.005));
-
-    colors.push(variedColor.r, variedColor.g, variedColor.b);
-  }
-
-  // Add the colors as a new attribute to the geometry
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    return { r, g, b };
 }

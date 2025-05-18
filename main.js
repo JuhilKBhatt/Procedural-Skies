@@ -1,34 +1,69 @@
-// main.js
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
 
-// OrbitControls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000); // Increased far plane
+const renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialias for smoother edges
+
+// Enable Shadow Maps
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(50, 100, 50).normalize();
+// OrbitControls (optional, for debugging camera, can be disabled if fixed follow cam is preferred)
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.minDistance = 10;
+controls.maxDistance = 500;
+controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
+
+// Lighting
+const light = new THREE.DirectionalLight(0xffffff, 2.5); // Increased intensity
+light.position.set(150, 300, 200); // Higher and angled for better shadows
+light.castShadow = true; // Enable shadow casting for this light
 scene.add(light);
 
-const ambientLight = new THREE.AmbientLight(0x404040, 2);
+// Configure shadow properties for the directional light
+light.shadow.mapSize.width = 4096; // Higher resolution for sharper shadows
+light.shadow.mapSize.height = 4096;
+light.shadow.camera.near = 50;
+light.shadow.camera.far = 1000;
+
+// Adjust the shadow camera frustum to cover the terrain area effectively
+const shadowCamSize = 350; // This should roughly match or exceed terrainSize / 2
+light.shadow.camera.left = -shadowCamSize;
+light.shadow.camera.right = shadowCamSize;
+light.shadow.camera.top = shadowCamSize;
+light.shadow.camera.bottom = -shadowCamSize;
+
+const ambientLight = new THREE.AmbientLight(0x606080, 1.0); // Softer ambient light
 scene.add(ambientLight);
 
-const terrain = generateTerrain(scene);
+// Terrain Generation
+const terrain = generateTerrain(); // Call without scene argument
 scene.add(terrain);
 
+// Airplane (assuming createAirplane correctly positions the airplane and adds it to scene)
 const airplane = createAirplane(scene);
+// Ensure airplane casts shadows (you might need to do this in airplane.js)
+airplane.traverse(node => {
+    if (node.isMesh) {
+     node.castShadow = true;
+    }
+});
 
 // Keyboard control
 window.addEventListener('keydown', (event) => {
+  if (!airplane) return;
   switch (event.key) {
     case 'ArrowUp':
       airplane.speed = Math.min(airplane.speed + 0.01, airplane.maxSpeed);
@@ -50,6 +85,7 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('keyup', (event) => {
+    if (!airplane) return;
     switch (event.key) {
         case 'ArrowUp':
         case 'ArrowDown':
@@ -62,51 +98,35 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
-// Initial camera position - this will be overwritten in the animate loop
-camera.position.set(0, -50, -50);
+// Initial camera position (will be updated by follow logic)
+camera.position.set(0, -100, -60); // Adjusted for a better initial view
 
-const cameraOffset = new THREE.Vector3(0, 50, -40);
-
-// Zoom parameters
-const zoomSensitivity = 0.5;
-const minZoomDistance = -5;  
-const maxZoomDistance = -50; 
-
-// Mouse wheel event listener for zooming
-window.addEventListener('wheel', (event) => {
-    cameraOffset.z += event.deltaY * zoomSensitivity * 0.01; // Multiply by 0.01 for smoother zoom
-
-    // Clamp the cameraOffset.z value within the defined zoom limits
-    cameraOffset.z = Math.max(maxZoomDistance, Math.min(minZoomDistance, cameraOffset.z));
-
-    // Prevent default scrolling behavior
-    event.preventDefault();
-});
+const cameraOffset = new THREE.Vector3(0, 30, -50); // Adjusted offset: Y higher, Z further back
 
 function animate() {
     requestAnimationFrame(animate);
+    controls.update(); // Required if enableDamping or autoRotate is true
 
-    airplane.updateSpeed(airplane.speed, 0);
-    airplane.updatePosition();
-    airplane.animateRudder();
-    airplane.animateElevator();
-    airplane.animateEngine();
+    if (airplane) {
+        airplane.updateSpeed(airplane.speed, 0);
+        airplane.updatePosition();
+        airplane.animateRudder();
+        airplane.animateElevator();
+        airplane.animateEngine();
 
-    // Get the airplane's current world position and rotation
-    const airplanePosition = airplane.position;
-    const airplaneRotation = airplane.rotation;
+        const airplanePosition = airplane.position.clone();
+        const airplaneRotation = airplane.rotation.clone();
 
-    // Calculate the desired camera position based on the airplane's position and the offset
-    // We need to apply the airplane's rotation to the camera offset
-    const rotatedCameraOffset = cameraOffset.clone().applyEuler(new THREE.Euler(0, airplaneRotation.y, 0, 'XYZ'));
-    const desiredCameraPosition = airplanePosition.clone().add(rotatedCameraOffset);
+        // Ensure the camera follows from behind and slightly above
+        const rotatedCameraOffset = cameraOffset.clone().applyEuler(new THREE.Euler(0, airplaneRotation.y, 0, 'XYZ'));
+        const desiredCameraPosition = airplanePosition.clone().add(rotatedCameraOffset);
 
-    // Smoothly move the camera towards the desired position
-    const cameraLerpFactor = 0.05; // Adjust for smoother or faster camera follow
-    camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
+        const cameraLerpFactor = 0.07; // Smoother follow
+        camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
+        camera.lookAt(airplanePosition.x, airplanePosition.y + 5, airplanePosition.z); // Look slightly above center mass
+    }
 
-    // Make the camera look at the airplane
-    camera.lookAt(airplanePosition);
+
     renderer.render(scene, camera);
 }
 animate();
