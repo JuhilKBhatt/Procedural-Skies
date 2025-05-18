@@ -1,6 +1,6 @@
 // main.js
 import * as THREE from 'three';
-// import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 
@@ -9,6 +9,9 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(50, 100, 50).normalize();
@@ -57,18 +60,37 @@ window.addEventListener('keyup', (event) => {
     }
 });
 
+// Initial camera position - this will be overwritten in the animate loop
 camera.position.set(0, 50, 50);
+
+const cameraOffset = new THREE.Vector3(0, 5, -10);
 
 function animate() {
     requestAnimationFrame(animate);
 
     airplane.updateSpeed(airplane.speed, 0);
-
     airplane.updatePosition();
     airplane.animateRudder();
     airplane.animateElevator();
     airplane.animateEngine();
 
+    // Get the airplane's current world position and rotation
+    const airplanePosition = airplane.position;
+    const airplaneRotation = airplane.rotation;
+
+    // Calculate the desired camera position based on the airplane's position and the offset
+    // We need to apply the airplane's rotation to the camera offset
+    const rotatedCameraOffset = cameraOffset.clone().applyEuler(new THREE.Euler(0, airplaneRotation.y, 0, 'XYZ'));
+    const desiredCameraPosition = airplanePosition.clone().add(rotatedCameraOffset);
+
+    // Smoothly move the camera towards the desired position
+    const cameraLerpFactor = 0.05;
+    camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
+
+    // Make the camera look at the airplane
+    camera.lookAt(airplanePosition);
+
+    controls.update();
     renderer.render(scene, camera);
 }
 animate();
