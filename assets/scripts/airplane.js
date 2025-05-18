@@ -1,7 +1,7 @@
 // airplane.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
-import { animateAirplaneRudder, animateAirplaneElevator } from './airplaneAnimate.js';
+import { animateAirplaneRudder, animateAirplaneElevator, animateAirplaneEngine } from './airplaneAnimate.js';
 
 export function createAirplane(scene) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
@@ -43,6 +43,10 @@ export function createAirplane(scene) {
         animateAirplaneElevator(this);
     };
 
+    // Animate airplane engine (pass speed to the animation function)
+    airplane.animateEngine = function () {
+        animateAirplaneEngine(this, this.speed); // Pass the current speed
+    };
 
     scene.add(airplane);
     return airplane;

@@ -72,12 +72,14 @@ window.addEventListener('keyup', (event) => {
 camera.position.set(0, 50, 50);
 
 function animate() {
-  requestAnimationFrame(animate);
-  airplane.updatePosition();
-  airplane.animateRudder(); // Call rudder animation
-  airplane.animateElevator(); // Call elevator animation
-  controls.update();
-  renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+    airplane.updatePosition();
+    airplane.animateRudder(); // Call rudder animation
+    airplane.animateElevator(); // Call elevator animation
+    airplane.animateEngine(); // Call engine animation <--- Added
+
+    controls.update();
+    renderer.render(scene, camera);
 }
 animate();
 
