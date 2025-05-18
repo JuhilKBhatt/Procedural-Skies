@@ -65,6 +65,8 @@ camera.position.set(0, 50, 50);
 function animate() {
     requestAnimationFrame(animate);
 
+    airplane.updateSpeed(airplane.speed, 0);
+
     airplane.updatePosition();
     airplane.animateRudder();
     airplane.animateElevator();
