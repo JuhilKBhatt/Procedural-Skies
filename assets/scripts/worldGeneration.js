@@ -74,7 +74,7 @@ export function generateTerrain(scene, world) { // Added 'scene' argument
     const terrainBody = new CANNON.Body({
         mass: 0, // Terrain is static
         shape: heightfieldShape,
-        position: new CANNON.Vec3(0, -terrainMaxHeight, 0) // Adjust position if needed
+        position: new CANNON.Vec3(0, 0, 0) // Adjust position if needed
     });
     terrainBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to match Three.js plane
 
