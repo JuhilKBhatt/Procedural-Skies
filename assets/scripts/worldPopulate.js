@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 
 /**
- * Populates the scene with trees, rocks, and seaweed asynchronously without considering terrain color.
+ * Populates the scene with trees, rocks, seaweed, and clouds asynchronously.
  * @param {THREE.Scene} scene - The Three.js scene object.
  * @param {THREE.Mesh} terrain - The generated terrain mesh.
  */
@@ -19,6 +19,11 @@ export function populateWorld(scene, terrain) {
 
     const seaWeedModels = [
         'assets/models/river/SeaWeed1.fbx', 'assets/models/river/SeaWeed2.fbx'
+    ];
+
+    const cloudModels = [
+        'assets/models/cloud/Cloud_1.fbx', 'assets/models/cloud/Cloud_2.fbx', 'assets/models/cloud/Cloud_3.fbx',
+        'assets/models/cloud/Cloud_4.fbx'
     ];
 
     const allModels = [...treeModels, ...rockModels, ...seaWeedModels];
@@ -72,8 +77,20 @@ export function populateWorld(scene, terrain) {
                     const finalY = hit[0].point.y + 0.1;
                     const modelPath = allModels[Math.floor(Math.random() * allModels.length)];
                     const randomScale = Math.random() * 0.005 + 0.008;
-                    loadFBXModel(modelPath, new THREE.Vector3(x, finalY, z), scene, randomScale);
+                    // loadFBXModel(modelPath, new THREE.Vector3(x, finalY, z), scene, randomScale);
                 }
+            }
+
+            // Cloud generation
+            const numClouds = Math.floor(Math.random() * 0) + 1;
+            for (let c = 0; c < numClouds; c++) {
+                const cloudX = (Math.random() - 0.5) * terrainWidth;
+                const cloudZ = (Math.random() - 0.5) * terrainDepth;
+                const cloudY = Math.random() * 100 + 150; // Height
+
+                const cloudModelPath = cloudModels[Math.floor(Math.random() * cloudModels.length)];
+                const cloudScale = Math.random() * 0.02 + 0.05;
+                loadFBXModel(cloudModelPath, new THREE.Vector3(cloudX, cloudY, cloudZ), scene, cloudScale);
             }
 
             currentCluster++;

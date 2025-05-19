@@ -51,7 +51,7 @@ export function generateTerrain(scene) { // Added 'scene' argument
     terrainMesh.receiveShadow = true;
 
     scene.add(terrainMesh);
-    //populateWorld(scene, terrainMesh);
+    populateWorld(scene, terrainMesh);
 
     return terrainMesh;
 }
