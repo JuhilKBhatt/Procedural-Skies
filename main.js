@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
+import { ControlHandler } from './assets/scripts/controlHandler.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
@@ -60,42 +61,8 @@ airplane.traverse(node => {
     }
 });
 
-// Keyboard control
-window.addEventListener('keydown', (event) => {
-  if (!airplane) return;
-  switch (event.key) {
-    case 'ArrowUp':
-      airplane.speed = Math.min(airplane.speed + 0.01, airplane.maxSpeed);
-      airplane.targetElevatorRotationX = 0.05;
-      break;
-    case 'ArrowDown':
-      airplane.speed = Math.max(airplane.speed - 0.01, 0);
-      airplane.targetElevatorRotationX = -0.05;
-      break;
-    case 'ArrowLeft':
-      airplane.rotation.y += 0.05;
-      airplane.targetRudderRotationZ = 0.5;
-      break;
-    case 'ArrowRight':
-      airplane.rotation.y -= 0.05;
-      airplane.targetRudderRotationZ = -0.5;
-      break;
-  }
-});
-
-window.addEventListener('keyup', (event) => {
-    if (!airplane) return;
-    switch (event.key) {
-        case 'ArrowUp':
-        case 'ArrowDown':
-            airplane.targetElevatorRotationX = 0;
-            break;
-        case 'ArrowLeft':
-        case 'ArrowRight':
-            airplane.targetRudderRotationZ = 0;
-            break;
-    }
-});
+// Control Handler
+const controlHandler = new ControlHandler(airplane);
 
 // Initial camera position
 camera.position.set(0, -100, -60);
@@ -123,7 +90,6 @@ function animate() {
         camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
         camera.lookAt(airplanePosition.x, airplanePosition.y + 5, airplanePosition.z); // Look slightly above center mass
     }
-
 
     renderer.render(scene, camera);
 }
