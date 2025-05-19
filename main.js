@@ -8,7 +8,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000); // Increased far plane
+const camera = new THREE.PerspectiveCamera(20, window.innerWidth / window.innerHeight, 100, 10000); // Increased far plane
 const renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialias for smoother edges
 
 // Enable Shadow Maps
@@ -25,7 +25,6 @@ controls.dampingFactor = 0.05;
 controls.screenSpacePanning = false;
 controls.minDistance = 10;
 controls.maxDistance = 500;
-controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below ground
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 2.5); // Increased intensity
@@ -65,8 +64,7 @@ airplane.traverse(node => {
 const controlHandler = new ControlHandler(airplane);
 
 // Initial camera position
-camera.position.set(0, -100, -60);
-const cameraOffset = new THREE.Vector3(0, 180, -280);
+const cameraOffset = new THREE.Vector3(0, 180, -425);
 
 function animate() {
     requestAnimationFrame(animate);
@@ -88,7 +86,7 @@ function animate() {
 
         const cameraLerpFactor = 0.07; // Smoother follow
         camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
-        camera.lookAt(airplanePosition.x, airplanePosition.y + 5, airplanePosition.z); // Look slightly above center mass
+        camera.lookAt(airplanePosition.x, airplanePosition.y, airplanePosition.z); // Look slightly above center mass
     }
 
     renderer.render(scene, camera);

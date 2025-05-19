@@ -6,7 +6,8 @@ import { animateAirplaneRudder, animateAirplaneElevator, animateAirplaneEngine }
 export function createAirplane(scene) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
     const airplane = new THREE.Group();
-    loadFBXModel(modelPath, new THREE.Vector3(0, 100, -180), airplane, 0.02);
+    loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02);
+    airplane.position.set(0, 100, -180);
 
     // Movement parameters
     airplane.speed = 0;
