@@ -7,7 +7,7 @@ function lerp(t, a, b) {
 
 class PerlinNoise {
     constructor(seed = Math.random()) {
-        this.p = new Uint8Array(512);
+        this.p = new Uint8Array(1024);
         this.seed = seed; // Store the seed
         this._initializePermutationTable();
     }
@@ -87,7 +87,7 @@ class PerlinNoise {
 }
 
 // Instantiate Perlin Noise with a fixed seed for repeatable terrain
-const perlin = new PerlinNoise(12345); // Use a seed for reproducibility
+const perlin = new PerlinNoise();
 
 // Base multi-octave noise generation
 function multiOctavePerlinNoise3D(x, y, z, octaves = 6, persistence = 0.5, lacunarity = 2.0) {
