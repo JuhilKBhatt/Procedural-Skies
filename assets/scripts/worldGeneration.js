@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { generateCombinedTerrain } from './perlinNoise.js';
 import { calculateVertexColor } from './worldColour.js';
 import { populateWorld } from './worldPopulate.js';
+import * as CANNON from 'cannon-es';
 
-export function generateTerrain(scene) { // Added 'scene' argument
+export function generateTerrain(scene, world) { // Added 'scene' argument
     const terrainSize = 1000; // Width and depth of the terrain plane
     const terrainSegments = 200; // Number of segments
     const terrainMaxHeight = 100; // Maximum peak height of the terrain
@@ -53,5 +54,31 @@ export function generateTerrain(scene) { // Added 'scene' argument
     scene.add(terrainMesh);
     //populateWorld(scene, terrainMesh);
 
-    return terrainMesh;
+    // Create a Cannon.js Heightfield for the terrain
+    const matrix = [];
+    const rows = terrainSegments + 1;
+    const cols = terrainSegments + 1;
+
+    for (let i = 0; i < rows; i++) {
+        matrix.push([]);
+        for (let j = 0; j < cols; j++) {
+            const index = j * (terrainSegments + 1) + i;
+            matrix[i].push(vertices[index * 3 + 2]); // Get the y-coordinate (height)
+        }
+    }
+
+    const heightfieldShape = new CANNON.Heightfield(matrix, {
+        elementSize: terrainSize / terrainSegments // Size of each element (segment) in the heightfield
+    });
+
+    const terrainBody = new CANNON.Body({
+        mass: 0, // Terrain is static
+        shape: heightfieldShape,
+        position: new CANNON.Vec3(0, -terrainMaxHeight, 0) // Adjust position if needed
+    });
+    terrainBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to match Three.js plane
+
+    world.addBody(terrainBody); // Now 'world' is accessible
+
+    return terrainMesh; // Keep returning the Three.js mesh
 }

@@ -1,8 +1,10 @@
+// main.js
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
+import * as CANNON from 'cannon-es';
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -11,6 +13,12 @@ scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
 
 const camera = new THREE.PerspectiveCamera(20, window.innerWidth / window.innerHeight, 100, 10000); // Increased far plane
 const renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialias for smoother edges
+
+// Cannon.js world
+const world = new CANNON.World();
+world.gravity.set(0, -9.8 * 10, 0); // Set gravity (same scaling as your flight physics)
+world.broadphase = new CANNON.NaiveBroadphase(); // Basic broadphase collision detection
+world.solver.iterations = 10; // Number of solver iterations for stability
 
 // Enable Shadow Maps
 renderer.shadowMap.enabled = true;
@@ -50,10 +58,10 @@ const ambientLight = new THREE.AmbientLight(0x606080, 1.0); // Softer ambient li
 scene.add(ambientLight);
 
 // Terrain Generation
-const terrain = generateTerrain(scene);
+const terrain = generateTerrain(scene, world); // Pass world to generateTerrain
 
 // Airplane (assuming createAirplane correctly positions the airplane and adds it to scene)
-const airplane = createAirplane(scene);
+const airplane = createAirplane(scene, world);
 // Ensure airplane casts shadows (you might need to do this in airplane.js)
 airplane.traverse(node => {
     if (node.isMesh) {
@@ -72,9 +80,15 @@ function animate() {
     controls.update();
 
     const deltaTime = clock.getDelta();
+    world.step(1 / 60, deltaTime, 10);
 
-    if (airplane) {
-        airplane.update(deltaTime);
+    if (airplane && airplane.physicsBody) {
+        // Update Three.js airplane position from Cannon.js body
+        airplane.position.copy(airplane.physicsBody.position);
+        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+
+        airplane.update(deltaTime); // Your existing airplane update logic
+
         airplane.animateRudder();
         airplane.animateElevator();
         airplane.animateEngine();
