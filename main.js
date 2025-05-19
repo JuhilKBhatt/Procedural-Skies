@@ -27,7 +27,7 @@ controls.minDistance = 10;
 controls.maxDistance = 500;
 
 // Lighting
-const light = new THREE.DirectionalLight(0xffffff, 2.5); // Increased intensity
+const light = new THREE.DirectionalLight(0xffffff, 5); // Increased intensity
 light.position.set(150, 300, 200); // Higher and angled for better shadows
 light.castShadow = true; // Enable shadow casting for this light
 scene.add(light);
