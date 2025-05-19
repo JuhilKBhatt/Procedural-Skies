@@ -8,7 +8,7 @@ export function generateTerrain(scene) { // Added 'scene' argument
     const terrainSize = 1000; // Width and depth of the terrain plane
     const terrainSegments = 200; // Number of segments
     const terrainMaxHeight = 100; // Maximum peak height of the terrain
-    const terrainMinHeight = -20; // Minimum depth
+    const terrainMinHeight = -50; // Minimum depth
 
     const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
     const vertices = geometry.attributes.position.array;

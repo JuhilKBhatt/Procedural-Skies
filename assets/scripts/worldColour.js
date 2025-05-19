@@ -12,8 +12,8 @@ export const colorSnow = new THREE.Color(0xfffafa);        // Snow White
 
 // Define normalized height thresholds for different terrain types/colors
 // These thresholds are for the noise value that comes from generateCombinedTerrain (0 to 1)
-export const normalizedWaterLevel = 0.20;
-export const normalizedSandLevel = 0.25;
+export const normalizedWaterLevel = 0.30;
+export const normalizedSandLevel = 0.35;
 export const normalizedGrassLevel = 0.50;
 export const normalizedRockLevel = 0.70;
 // Snow will be above rock level
