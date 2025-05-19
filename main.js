@@ -4,6 +4,7 @@ import { generateTerrain } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
 
+const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
@@ -70,9 +71,10 @@ function animate() {
     requestAnimationFrame(animate);
     controls.update();
 
+    const deltaTime = clock.getDelta();
+
     if (airplane) {
-        airplane.updateSpeed(airplane.speed, 0);
-        airplane.updatePosition();
+        airplane.update(deltaTime);
         airplane.animateRudder();
         airplane.animateElevator();
         airplane.animateEngine();
