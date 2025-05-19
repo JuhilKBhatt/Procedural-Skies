@@ -2,18 +2,20 @@
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
 import { animateAirplaneRudder, animateAirplaneElevator, animateAirplaneEngine } from './airplaneAnimate.js';
+import { FlightPhysics } from './flightPhysics.js';
 
 export function createAirplane(scene) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
     const airplane = new THREE.Group();
     loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02);
     airplane.position.set(0, 100, -180);
+    airplane.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0)); // Adjust initial orientation if needed
 
-    // Movement parameters
-    airplane.speed = 0;
-    airplane.maxSpeed = 1;
-    airplane.speedIncrement = 0.01;
-    airplane.velocity = new THREE.Vector3();
+    // Movement parameters are now handled by FlightPhysics
+    airplane.speed = 0; // Throttle (0 to 1)
+
+    // Flight Physics instance
+    airplane.physics = new FlightPhysics(airplane);
 
     // Rudder animation parameter
     airplane.targetRudderRotationZ = 0;
@@ -21,16 +23,31 @@ export function createAirplane(scene) {
     // Elevator animation parameter
     airplane.targetElevatorRotationX = 0;
 
-    // Update airplane position based on velocity
-    airplane.updatePosition = function () {
-        this.position.add(this.velocity);
+    // Update airplane based on physics
+    airplane.update = function (deltaTime) {
+        this.physics.update(deltaTime);
+        this.animateRudder();
+        this.animateElevator();
+        this.animateEngine();
     };
 
-    // Update airplane speed and direction
-    airplane.updateSpeed = function (forward, sideways) {
-        const direction = new THREE.Vector3(Math.sin(this.rotation.y), 0, Math.cos(this.rotation.y));
-        this.velocity.copy(direction.multiplyScalar(forward * this.speed));
-        this.velocity.x += sideways * this.speed;
+    // Apply control inputs
+    airplane.applyControl = function (control, value) {
+        this.physics.applyControl(control, value);
+        switch (control) {
+            case 'rudder':
+                this.targetRudderRotationZ = value; // Value between -1 and 1
+                break;
+            case 'elevator':
+                this.targetElevatorRotationX = value; // Value between -1 and 1
+                break;
+            case 'throttle':
+                this.speed = value;
+                break;
+            case 'ailerons':
+                this.physics.applyControl('roll', value); // Value between -1 and 1
+                break;
+        }
     };
 
     // Animate airplane rudder by calling the imported function
