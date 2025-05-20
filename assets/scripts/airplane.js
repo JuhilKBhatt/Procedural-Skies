@@ -15,9 +15,6 @@ export function createAirplane(scene, world) {
     // Movement parameters are now handled by FlightPhysics
     airplane.speed = 0; // Throttle (0 to 1)
 
-    // Flight Physics instance
-    airplane.physics = new FlightPhysics(airplane);
-
     // Rudder animation parameter
     airplane.targetRudderRotationZ = 0;
 
@@ -26,7 +23,6 @@ export function createAirplane(scene, world) {
 
     // Update airplane based on physics
     airplane.update = function (deltaTime) {
-        this.physics.update(deltaTime);
         this.animateRudder();
         this.animateElevator();
         this.animateEngine();
@@ -34,7 +30,6 @@ export function createAirplane(scene, world) {
 
     // Apply control inputs
     airplane.applyControl = function (control, value) {
-        this.physics.applyControl(control, value);
         switch (control) {
             case 'rudder':
                 this.targetRudderRotationZ = value; // Value between -1 and 1
@@ -46,7 +41,6 @@ export function createAirplane(scene, world) {
                 this.speed = value;
                 break;
             case 'ailerons':
-                this.physics.applyControl('roll', value); // Value between -1 and 1
                 break;
         }
     };
@@ -67,14 +61,24 @@ export function createAirplane(scene, world) {
     };
 
     // Create a Cannon.js body for the airplane
-    const airplaneShape = new CANNON.Box(new CANNON.Vec3(20, 0.5, 4)); // Adjust dimensions as needed
-    airplane.physicsBody = new CANNON.Body({
+    const airplaneShape = new CANNON.Box(new CANNON.Vec3(30, 10, 60)); // Adjust dimensions as needed
+// Create a compound Cannon.js body for the airplane
+    const airplaneBody = new CANNON.Body({
         mass: 1, // Adjust mass as needed
-        shape: airplaneShape,
         position: new CANNON.Vec3(airplane.position.x, airplane.position.y, airplane.position.z),
         quaternion: new CANNON.Quaternion(airplane.quaternion.x, airplane.quaternion.y, airplane.quaternion.z, airplane.quaternion.w)
     });
 
+    // Fuselage (center box)
+    const fuselageShape = new CANNON.Box(new CANNON.Vec3(60, 60, 60));
+    airplaneBody.addShape(fuselageShape, new CANNON.Vec3(0, 0, 0)); // Offset 0
+
+    // Wings (example - adjust dimensions and offsets)
+    const wingShape = new CANNON.Box(new CANNON.Vec3(60, 1, 5)); // Thin wing
+    airplaneBody.addShape(wingShape, new CANNON.Vec3(0, 10, 0)); // Above fuselage - adjust offset and orientation
+    airplaneBody.addShape(wingShape, new CANNON.Vec3(0, -10, 0)); // Below fuselage - adjust offset and orientation
+
+    airplane.physicsBody = airplaneBody;
     world.addBody(airplane.physicsBody);
 
     scene.add(airplane);

@@ -18,14 +18,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialia
 const world = new CANNON.World();
 world.gravity.set(0, -9.8 * 10, 0); // Set gravity (same scaling as your flight physics)
 world.broadphase = new CANNON.NaiveBroadphase(); // Basic broadphase collision detection
-world.solver.iterations = 10; // Number of solver iterations for stability
+world.solver.iterations = 1; // Number of solver iterations for stability
 
 // Create contact material for airplane and terrain
 const airplaneTerrainContactMaterial = new CANNON.ContactMaterial(
     new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Airplane material properties
     new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Terrain material properties
     {
-        friction: 0.3, // Coefficient of friction
+        friction: 0.6, // Coefficient of friction
         restitution: 0.0, // Coefficient of restitution (bounciness)
         contactEquationStiffness: 1e7,
         contactEquationRelaxation: 3,
@@ -99,10 +99,7 @@ function animate() {
     const deltaTime = clock.getDelta();
     world.step(1 / 60, deltaTime, 10);
 
-    if (airplane && airplane.physicsBody) {
-        // Update Three.js airplane position from Cannon.js body
-        airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+    if (airplane) {
 
         airplane.update(deltaTime); // Your existing airplane update logic
 

@@ -21,19 +21,13 @@ function loadFBXModel(modelPath, location, scene, scale = 0.0005, onLoaded) {
             if (onLoaded) {
                 onLoaded(object);
             }
-            console.log('FBX model loaded successfully:', modelPath);
         },
         (xhr) => {
             if (xhr.lengthComputable) {
                 const percentComplete = xhr.loaded / xhr.total * 100;
-                console.log(`FBX model ${modelPath} loading: ${percentComplete.toFixed(2)}% loaded`);
-            } else {
-                console.log(`FBX model ${modelPath} loading: loading...`);
             }
         },
-        (error) => {
-            console.error('Error loading FBX model:', modelPath, error);
-        }
+        (error) => {}
     );
 }
 
