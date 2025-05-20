@@ -20,6 +20,23 @@ world.gravity.set(0, -9.8 * 10, 0); // Set gravity (same scaling as your flight 
 world.broadphase = new CANNON.NaiveBroadphase(); // Basic broadphase collision detection
 world.solver.iterations = 10; // Number of solver iterations for stability
 
+// Create contact material for airplane and terrain
+const airplaneTerrainContactMaterial = new CANNON.ContactMaterial(
+    new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Airplane material properties
+    new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Terrain material properties
+    {
+        friction: 0.3, // Coefficient of friction
+        restitution: 0.0, // Coefficient of restitution (bounciness)
+        contactEquationStiffness: 1e7,
+        contactEquationRelaxation: 3,
+        frictionEquationStiffness: 1e7,
+        frictionEquationRelaxation: 3,
+    }
+);
+
+// Add contact material to the world
+world.addContactMaterial(airplaneTerrainContactMaterial);
+
 // Enable Shadow Maps
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows

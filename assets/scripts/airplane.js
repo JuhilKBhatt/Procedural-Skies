@@ -67,9 +67,9 @@ export function createAirplane(scene, world) {
     };
 
     // Create a Cannon.js body for the airplane
-    const airplaneShape = new CANNON.Box(new CANNON.Vec3(50, 50, 100)); // Adjust dimensions as needed
+    const airplaneShape = new CANNON.Box(new CANNON.Vec3(20, 0.5, 4)); // Adjust dimensions as needed
     airplane.physicsBody = new CANNON.Body({
-        mass: 100, // Adjust mass as needed
+        mass: 1, // Adjust mass as needed
         shape: airplaneShape,
         position: new CANNON.Vec3(airplane.position.x, airplane.position.y, airplane.position.z),
         quaternion: new CANNON.Quaternion(airplane.quaternion.x, airplane.quaternion.y, airplane.quaternion.z, airplane.quaternion.w)
