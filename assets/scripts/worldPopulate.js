@@ -77,7 +77,7 @@ export function populateWorld(scene, terrain) {
                     const finalY = hit[0].point.y + 0.1;
                     const modelPath = allModels[Math.floor(Math.random() * allModels.length)];
                     const randomScale = Math.random() * 0.005 + 0.008;
-                    // loadFBXModel(modelPath, new THREE.Vector3(x, finalY, z), scene, randomScale);
+                    loadFBXModel(modelPath, new THREE.Vector3(x, finalY, z), scene, randomScale);
                 }
             }
 

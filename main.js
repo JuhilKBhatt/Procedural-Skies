@@ -39,11 +39,6 @@ const airplaneTerrainContactMaterial = new CANNON.ContactMaterial(
 );
 world.addContactMaterial(airplaneTerrainContactMaterial);
 
-// Apply material to bodies after they are created
-// In airplane.js, after creating airplaneBody: airplaneBody.material = airplaneMaterial;
-// In worldGeneration.js, after creating terrainBody: terrainBody.material = terrainMaterial;
-
-
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -93,6 +88,14 @@ const controlHandler = new ControlHandler(airplane);
 const cameraOffset = new THREE.Vector3(0, 10, -30); // Camera closer and slightly lower behind perspective
 const lookAtOffset = new THREE.Vector3(0, 5, 0);   // Look slightly above airplane's center for better view
 
+let useFollowCamera = true;
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'c') {
+        useFollowCamera = !useFollowCamera;
+        controls.enabled = !useFollowCamera;
+    }
+});
+
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
@@ -101,27 +104,30 @@ function animate() {
     // Step the physics world
     world.step(fixedTimeStep, deltaTime, 3); // Max sub-steps: 3
 
-    if (airplane && airplane.physicsBody) {
-        // Sync Three.js airplane visual model with the Cannon.js physics body
-        airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+    if (useFollowCamera) {
+        if (airplane && airplane.physicsBody) {
+            // Sync Three.js airplane visual model with the Cannon.js physics body
+            airplane.position.copy(airplane.physicsBody.position);
+            airplane.quaternion.copy(airplane.physicsBody.quaternion);
 
-        // Call airplane's internal update (which now calls flightPhysics.update)
-        airplane.update(deltaTime); // This handles physics and visual animations
+            // Call airplane's internal update (which now calls flightPhysics.update)
+            airplane.update(deltaTime); // This handles physics and visual animations
 
-        // Camera follow logic
-        const targetPosition = airplane.position.clone();
-        const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion); // Apply airplane's rotation to offset
-        const desiredCameraPosition = targetPosition.clone().add(offset);
+            // Camera follow logic
+            const targetPosition = airplane.position.clone();
+            const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion); // Apply airplane's rotation to offset
+            const desiredCameraPosition = targetPosition.clone().add(offset);
 
-        const cameraLerpFactor = 0.07;
-        camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
+            const cameraLerpFactor = 0.07;
+            camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
 
-        const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
-        camera.lookAt(lookAtPosition);
+            const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
+            camera.lookAt(lookAtPosition);
+        }
+    } else {
+        controls.update(); // only update when not in follow mode
     }
 
-    controls.update(); // Update OrbitControls if you are using it alongside the follow cam or for debugging
     renderer.render(scene, camera);
 }
 

@@ -10,16 +10,8 @@ export function createAirplane(scene, world) {
     const airplane = new THREE.Group();
     loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02); // Ensure this correctly loads and scales
     airplane.position.set(0, 100, -180);
-
-    // Initial orientation (ensure model's "forward" aligns with local +Z for physics consistency)
-    // The original rotations:
-    // airplane.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0)); // Pointed model's original front to world -Z
-    // airplane.rotateY(-Math.PI / 2); // Rotated around world Y, making it face world +X if original front was -Z.
-                                     // Or if model front was +X, now faces +Z.
-    // Let's simplify: Assume FBX model faces +Z locally. We want it to initially face world +Z.
-    // No initial rotation needed for the THREE.Group if FBX is oriented along its local +Z.
-    // If FBX model's forward is, for example, +X, you'd rotate it:
-    // airplane.rotation.y = -Math.PI / 2; // To make local +X point to world +Z
+    
+    airplane.rotation.y = -Math.PI / 2; // To make local +X point to world +Z
 
     // For this example, let's use the original orientation and assume FlightPhysics's local Z is forward.
     airplane.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));
