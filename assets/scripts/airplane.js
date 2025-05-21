@@ -11,6 +11,7 @@ export function createAirplane(scene, world) {
     loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02);
     airplane.position.set(0, 100, -180);
     airplane.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0)); // Adjust initial orientation if needed
+    airplane.rotateY(-Math.PI / 2); // Rotate to face forward
 
     // Movement parameters are now handled by FlightPhysics
     airplane.speed = 0; // Throttle (0 to 1)
