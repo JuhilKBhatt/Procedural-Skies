@@ -1,14 +1,27 @@
-// controlHandler.js
+// assets/scripts/controlHandler.js
 export class ControlHandler {
     constructor(airplane) {
         this.airplane = airplane;
         this.keys = {};
+
+        // Store current throttle state locally in ControlHandler
+        this.currentThrottle = 0.0; // Initial throttle is 0
+        if (this.airplane && this.airplane.flightPhysics) {
+            this.currentThrottle = this.airplane.flightPhysics.throttle; // Sync with physics if already set
+        }
+        this.throttleStep = 0.01; // Smoother throttle adjustment
+
         this.bindEvents();
+        this.updateAirplane(); // Initialize controls (especially neutrals)
     }
 
     bindEvents() {
-        window.addEventListener('keydown', (event) => this.handleKeyDown(event));
-        window.addEventListener('keyup', (event) => this.handleKeyUp(event));
+        // Using arrow functions to preserve 'this' context
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
     }
 
     handleKeyDown(event) {
@@ -22,36 +35,53 @@ export class ControlHandler {
     }
 
     updateAirplane() {
-        if (!this.airplane) return;
+        if (!this.airplane || !this.airplane.flightPhysics) return;
+
+        let newThrottle = this.currentThrottle;
+        let elevatorInput = 0;
+        let yawInput = 0;
+        let aileronInput = 0;
 
         // Update throttle
         if (this.keys['ArrowUp']) {
-            this.airplane.applyControl('throttle', Math.min(1, this.airplane.speed + 0.02)); // Increase throttle
-            this.airplane.applyControl('elevator', 1); // Apply some elevator for takeoff
+            newThrottle = Math.min(1, this.currentThrottle + this.throttleStep);
+            // Apply some elevator for takeoff assist, reduce as speed increases or make it conditional
+            elevatorInput = 0.3;
         } else if (this.keys['ArrowDown']) {
-            this.airplane.applyControl('throttle', Math.max(0, this.airplane.speed - 0.02)); // Decrease throttle
-            this.airplane.applyControl('elevator', -1); // Apply some down elevator
-        } else {
-            this.airplane.applyControl('elevator', 0); // Neutral elevator
+            newThrottle = Math.max(0, this.currentThrottle - this.throttleStep);
+            elevatorInput = -0.1; // Less aggressive down elevator
         }
+        this.currentThrottle = newThrottle;
+        this.airplane.applyControl('throttle', this.currentThrottle);
+
+        // Update elevator (can be overridden by specific pitch keys if added)
+        // If 'w' or 's' are intended for direct pitch control:
+        if (this.keys['w']) {
+            elevatorInput = 1; // Pitch up
+        } else if (this.keys['s']) {
+            elevatorInput = -1; // Pitch down
+        } else if (!this.keys['ArrowUp'] && !this.keys['ArrowDown']) {
+            // Neutral elevator if no throttle/pitch keys are pressed
+            elevatorInput = 0;
+        }
+        this.airplane.applyControl('elevator', elevatorInput);
+
 
         // Update yaw (rudder)
         if (this.keys['ArrowLeft']) {
-            this.airplane.applyControl('yaw', 1); // Yaw left
+            yawInput = 1; // Yaw left
         } else if (this.keys['ArrowRight']) {
-            this.airplane.applyControl('yaw', -1); // Yaw right
-        } else {
-            this.airplane.applyControl('yaw', 0); // Neutral yaw
+            yawInput = -1; // Yaw right
         }
+        this.airplane.applyControl('yaw', yawInput);
 
-        // Example for ailerons (roll) - you might need different keys
-        if (this.keys['q']) {
-            this.airplane.applyControl('ailerons', 1); // Roll left
-        } else if (this.keys['e']) {
-            this.airplane.applyControl('ailerons', -1); // Roll right
-        } else {
-            this.airplane.applyControl('ailerons', 0); // Neutral roll
+        // Update roll (ailerons)
+        if (this.keys['q']) { // Changed from 'a' to 'q' as in original
+            aileronInput = 1; // Roll left
+        } else if (this.keys['e']) { // Changed from 'd' to 'e' as in original
+            aileronInput = -1; // Roll right
         }
+        this.airplane.applyControl('ailerons', aileronInput);
     }
 
     dispose() {

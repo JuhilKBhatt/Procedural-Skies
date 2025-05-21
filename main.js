@@ -1,7 +1,7 @@
 // main.js
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
-import { generateTerrain } from './assets/scripts/worldGeneration.js';
+import { generateTerrain } from './assets/scripts/worldGeneration.js'; // Assuming this file exists
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
@@ -11,120 +11,124 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
 
-const camera = new THREE.PerspectiveCamera(20, window.innerWidth / window.innerHeight, 100, 10000); // Increased far plane
-const renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialias for smoother edges
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000); // Adjusted near plane, common FOV
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 // Cannon.js world
 const world = new CANNON.World();
-world.gravity.set(0, -9.8 * 10, 0); // Set gravity (same scaling as your flight physics)
-world.broadphase = new CANNON.NaiveBroadphase(); // Basic broadphase collision detection
-world.solver.iterations = 1; // Number of solver iterations for stability
+world.gravity.set(0, -9.82 * 2, 0); // Slightly increased gravity effect for gameplay if desired, or use 9.82 for real scale. Multiplier was 10, which is very high.
+world.broadphase = new CANNON.SAPBroadphase(world); // SAPBroadphase is generally better than NaiveBroadphase
+world.solver.iterations = 10; // More iterations for better stability
 
 // Create contact material for airplane and terrain
+// Give materials names for easier debugging if needed
+const airplaneMaterial = new CANNON.Material("airplaneMaterial");
+const terrainMaterial = new CANNON.Material("terrainMaterial");
+
 const airplaneTerrainContactMaterial = new CANNON.ContactMaterial(
-    new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Airplane material properties
-    new CANNON.Material({ friction: 0.3, restitution: 0.0 }), // Terrain material properties
+    airplaneMaterial,
+    terrainMaterial,
     {
-        friction: 0.6, // Coefficient of friction
-        restitution: 0.0, // Coefficient of restitution (bounciness)
+        friction: 0.5,      // Friction between airplane and terrain
+        restitution: 0.1,   // Bounciness (low for crashes)
         contactEquationStiffness: 1e7,
-        contactEquationRelaxation: 3,
+        contactEquationRelaxation: 4, // Adjusted relaxation
         frictionEquationStiffness: 1e7,
-        frictionEquationRelaxation: 3,
+        frictionEquationRelaxation: 4, // Adjusted relaxation
     }
 );
-
-// Add contact material to the world
 world.addContactMaterial(airplaneTerrainContactMaterial);
 
-// Enable Shadow Maps
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+// Apply material to bodies after they are created
+// In airplane.js, after creating airplaneBody: airplaneBody.material = airplaneMaterial;
+// In worldGeneration.js, after creating terrainBody: terrainBody.material = terrainMaterial;
 
+
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.screenSpacePanning = false;
 controls.minDistance = 10;
-controls.maxDistance = 500;
+controls.maxDistance = 500; // Max distance for orbit controls
 
-// Lighting
-const light = new THREE.DirectionalLight(0xffffff, 5); // Increased intensity
-light.position.set(150, 300, 200); // Higher and angled for better shadows
-light.castShadow = true; // Enable shadow casting for this light
+const light = new THREE.DirectionalLight(0xffffff, 5);
+light.position.set(150, 300, 200);
+light.castShadow = true;
 scene.add(light);
 
-// Configure shadow properties for the directional light
 light.shadow.mapSize.width = 4096;
 light.shadow.mapSize.height = 4096;
 light.shadow.camera.near = 50;
 light.shadow.camera.far = 1000;
-
-// Adjust the shadow camera frustum to cover the terrain area effectively
 const shadowCamSize = 350;
 light.shadow.camera.left = -shadowCamSize;
 light.shadow.camera.right = shadowCamSize;
 light.shadow.camera.top = shadowCamSize;
 light.shadow.camera.bottom = -shadowCamSize;
 
-const ambientLight = new THREE.AmbientLight(0x606080, 1.0); // Softer ambient light
+const ambientLight = new THREE.AmbientLight(0x606080, 1.5); // Slightly increased ambient
 scene.add(ambientLight);
 
-// Terrain Generation
-const terrain = generateTerrain(scene, world);
+const terrain = generateTerrain(scene, world, terrainMaterial); // Pass terrainMaterial
 
-// Airplane (assuming createAirplane correctly positions the airplane and adds it to scene)
 const airplane = createAirplane(scene, world);
-// Ensure airplane casts shadows (you might need to do this in airplane.js)
+if (airplane && airplane.physicsBody) {
+    airplane.physicsBody.material = airplaneMaterial; // Assign material to airplane physics body
+}
+
 airplane.traverse(node => {
     if (node.isMesh) {
-     node.castShadow = true;
+        node.castShadow = true;
+        node.receiveShadow = true; // Airplane parts can receive shadows from other parts
     }
 });
 
-// Control Handler
 const controlHandler = new ControlHandler(airplane);
 
-// Initial camera position
-const cameraOffset = new THREE.Vector3(0, 180, -425);
+const cameraOffset = new THREE.Vector3(0, 10, -30); // Camera closer and slightly lower behind perspective
+const lookAtOffset = new THREE.Vector3(0, 5, 0);   // Look slightly above airplane's center for better view
 
 function animate() {
     requestAnimationFrame(animate);
-    controls.update();
-
     const deltaTime = clock.getDelta();
-    world.step(1 / 60, deltaTime, 10);
+    const fixedTimeStep = 1 / 60; // Use a fixed timestep for physics
 
-    if (airplane) {
+    // Step the physics world
+    world.step(fixedTimeStep, deltaTime, 3); // Max sub-steps: 3
 
-        airplane.update(deltaTime); // Your existing airplane update logic
+    if (airplane && airplane.physicsBody) {
+        // Sync Three.js airplane visual model with the Cannon.js physics body
+        airplane.position.copy(airplane.physicsBody.position);
+        airplane.quaternion.copy(airplane.physicsBody.quaternion);
 
-        airplane.animateRudder();
-        airplane.animateElevator();
-        airplane.animateEngine();
+        // Call airplane's internal update (which now calls flightPhysics.update)
+        airplane.update(deltaTime); // This handles physics and visual animations
 
-        const airplanePosition = airplane.position.clone();
-        const airplaneRotation = airplane.rotation.clone();
+        // Camera follow logic
+        const targetPosition = airplane.position.clone();
+        const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion); // Apply airplane's rotation to offset
+        const desiredCameraPosition = targetPosition.clone().add(offset);
 
-        // Ensure the camera follows from behind and slightly above
-        const rotatedCameraOffset = cameraOffset.clone().applyEuler(new THREE.Euler(0, airplaneRotation.y, 0, 'XYZ'));
-        const desiredCameraPosition = airplanePosition.clone().add(rotatedCameraOffset);
-
-        const cameraLerpFactor = 0.07; // Smoother follow
+        const cameraLerpFactor = 0.07;
         camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
-        camera.lookAt(airplanePosition.x, airplanePosition.y, airplanePosition.z); // Look slightly above center mass
+
+        const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
+        camera.lookAt(lookAtPosition);
     }
 
+    controls.update(); // Update OrbitControls if you are using it alongside the follow cam or for debugging
     renderer.render(scene, camera);
 }
+
 animate();
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });

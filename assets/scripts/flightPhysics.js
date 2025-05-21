@@ -1,153 +1,87 @@
-// flightPhysics.js
-import * as THREE from 'three';
+// assets/scripts/flightPhysics.js (Conceptual - You need to implement this)
+import * as CANNON from 'cannon-es';
 
 export class FlightPhysics {
-    constructor(airplane, initialConfig = {}) {
-        this.airplane = airplane;
-        this.config = {
-            gravity: -9.8 * 10, // Scaled gravity
-            airDensity: 1.225, // kg/m^3
-            wingArea: 20, // m^2 (example value)
-            liftCoefficientSlope: 0.1, // Lift coefficient per degree of angle of attack (example)
-            maxCl: 1.5, // Maximum lift coefficient (example)
-            dragCoefficientFactor: 0.01, // Factor for drag coefficient (example)
-            thrustMultiplier: 5000, // Adjust for desired thrust force
-            ...initialConfig,
-        };
+    constructor(physicsBody) {
+        this.physicsBody = physicsBody;
+        this.throttle = 0;      // 0 to 1
+        this.yawControl = 0;    // -1 (left), 0 (neutral), 1 (right)
+        this.pitchControl = 0;  // -1 (down), 0 (neutral), 1 (up)
+        this.rollControl = 0;   // -1 (left), 0 (neutral), 1 (right)
 
-        this.angleOfAttack = 0;
-        this.pitch = 0;
-        this.yaw = 0;
-        this.roll = 0;
+        // --- Constants to be tuned ---
+        this.maxThrust = 3000;         // Max engine thrust force (e.g., in Newtons)
+        this.liftCoefficient = 0.08;   // Simplified lift coefficient
+        this.dragCoefficient = 0.005;  // Simplified drag coefficient
+        this.rudderEffectiveness = 300; // Torque effectiveness for yaw
+        this.elevatorEffectiveness = 300;// Torque effectiveness for pitch
+        this.aileronEffectiveness = 400; // Torque effectiveness for roll
+        // --- End Constants ---
 
-        this.velocity = new THREE.Vector3();
-        this.acceleration = new THREE.Vector3();
-        this.liftForce = new THREE.Vector3();
-        this.dragForce = new THREE.Vector3();
-        this.thrustForce = new THREE.Vector3();
-        this.gravityForce = new THREE.Vector3(0, this.config.gravity * this.getMass(), 0);
+        // Helper vectors (to avoid allocations in loop)
+        this.worldVelocity = new CANNON.Vec3();
+        this.bodyForward = new CANNON.Vec3();
+        this.bodyUp = new CANNON.Vec3();
+        this.bodyRight = new CANNON.Vec3();
+        this.forceVector = new CANNON.Vec3();
+        this.torqueVector = new CANNON.Vec3();
+        this.worldTorque = new CANNON.Vec3(); // Add this in constructor
     }
 
-    getMass() {
-        // Approximate mass based on model scale (you might need to adjust this)
-        return 1000; // kg (example value)
+    setControls(controls) {
+        if (controls.throttle !== undefined) this.throttle = Math.max(0, Math.min(1, controls.throttle));
+        if (controls.yaw !== undefined) this.yawControl = controls.yaw;
+        if (controls.pitch !== undefined) this.pitchControl = controls.pitch;
+        if (controls.roll !== undefined) this.rollControl = controls.roll;
     }
 
     update(deltaTime) {
-        this.calculateForces();
-        this.updateMotion(deltaTime);
-        this.applyForcesToAirplane();
-    }
+        const body = this.physicsBody;
 
-    calculateForces() {
-        this.calculateLift();
-        this.calculateDrag();
-        this.calculateThrust();
-    }
+        // Get current velocity and orientation in world frame
+        this.worldVelocity.copy(body.velocity);
+        const airspeed = this.worldVelocity.length();
 
-    calculateLift() {
-        const forwardDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(this.airplane.quaternion).normalize();
-        const upDirection = new THREE.Vector3(0, 1, 0).applyQuaternion(this.airplane.quaternion).normalize();
-        const velocityWorld = this.velocity.clone().applyQuaternion(this.airplane.quaternion);
-        const relativeVelocity = velocityWorld.clone().multiplyScalar(-1); // Velocity of air relative to the wing
+        // Transform direction vectors from local to world space based on airplane's current orientation
+        body.quaternion.vmult(CANNON.Vec3.UNIT_Z, this.bodyForward); // Z is forward
+        body.quaternion.vmult(CANNON.Vec3.UNIT_Y, this.bodyUp);      // Y is up
+        body.quaternion.vmult(CANNON.Vec3.UNIT_X, this.bodyRight);   // X is right
 
-        const speedSquared = relativeVelocity.lengthSq();
-        if (speedSquared < 0.1) {
-            this.liftForce.set(0, 0, 0);
-            return;
-        }
-        const speed = Math.sqrt(speedSquared);
+        // 1. Thrust (applied along the airplane's forward direction)
+        const currentThrust = this.throttle * this.maxThrust;
+        this.forceVector.copy(this.bodyForward).scale(currentThrust, this.forceVector);
+        body.applyForce(this.forceVector, body.position); // Apply force at CM
 
-        // Approximate angle of attack (simplified)
-        const velocityVertical = relativeVelocity.clone().projectOnVector(upDirection);
-        const velocityHorizontal = relativeVelocity.clone().projectOnPlane(upDirection);
+        // 2. Lift (simplified: proportional to airspeed^2, acts along body's Up vector)
+        // A more accurate model would use Angle of Attack.
+        const liftMagnitude = this.liftCoefficient * airspeed * airspeed * (1.225); // 1.225 is air density
+        this.forceVector.copy(this.bodyUp).scale(liftMagnitude, this.forceVector);
+        body.applyForce(this.forceVector, body.position);
 
-        if (velocityHorizontal.lengthSq() > 0.001) {
-            this.angleOfAttack = Math.atan2(velocityVertical.length(), velocityHorizontal.length()) * (180 / Math.PI);
-            if (forwardDirection.dot(velocityHorizontal) < 0) {
-                this.angleOfAttack *= -1;
-            }
-        } else {
-            this.angleOfAttack = 0;
+        // 3. Drag (simplified: proportional to airspeed^2, opposite to world velocity)
+        if (airspeed > 0.1) { // Avoid issues at very low speed
+            const dragMagnitude = this.dragCoefficient * airspeed * airspeed * (1.225);
+            this.forceVector.copy(this.worldVelocity).scale(-1, this.forceVector).unit(this.forceVector).scale(dragMagnitude, this.forceVector);
+            body.applyForce(this.forceVector, body.position);
         }
 
+        // 4. Control Torques (applied in airplane's local frame)
+        // Yaw (Rudder)
+        this.torqueVector.set(0, this.yawControl * this.rudderEffectiveness, 0);
+        body.quaternion.vmult(this.torqueVector, this.worldTorque);
+        body.torque.vadd(this.worldTorque, body.torque);
 
-        let cl = this.config.liftCoefficientSlope * this.angleOfAttack;
-        cl = Math.min(Math.max(cl, -this.config.maxCl), this.config.maxCl); // Clamp lift coefficient
+        // Pitch (Elevators)
+        this.torqueVector.set(this.pitchControl * this.elevatorEffectiveness, 0, 0);
+        body.quaternion.vmult(this.torqueVector, this.worldTorque);
+        body.torque.vadd(this.worldTorque, body.torque);
 
-        const liftMagnitude = 0.5 * this.config.airDensity * speedSquared * this.config.wingArea * cl;
-        this.liftForce.copy(upDirection).multiplyScalar(liftMagnitude);
-    }
+        // Roll (Ailerons)
+        this.torqueVector.set(0, 0, this.rollControl * this.aileronEffectiveness);
+        body.quaternion.vmult(this.torqueVector, this.worldTorque);
+        body.torque.vadd(this.worldTorque, body.torque);
 
-    calculateDrag() {
-        const velocityWorld = this.velocity.clone().applyQuaternion(this.airplane.quaternion);
-        const speedSquared = velocityWorld.lengthSq();
-        if (speedSquared < 0.1) {
-            this.dragForce.set(0, 0, 0);
-            return;
-        }
-        const speed = Math.sqrt(speedSquared);
-
-        // Approximate drag coefficient (simplified - could be more complex based on angle of attack etc.)
-        const cd = this.config.dragCoefficientFactor * speed;
-
-        const dragMagnitude = 0.5 * this.config.airDensity * speedSquared * this.config.wingArea * cd;
-        const dragDirection = velocityWorld.clone().normalize().multiplyScalar(-1);
-        this.dragForce.copy(dragDirection).multiplyScalar(dragMagnitude);
-    }
-
-    calculateThrust() {
-        const forwardDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(this.airplane.quaternion).normalize();
-        this.thrustForce.copy(forwardDirection).multiplyScalar(this.airplane.speed * this.config.thrustMultiplier);
-    }
-
-    updateMotion(deltaTime) {
-        // Net force
-        const netForce = new THREE.Vector3()
-            .add(this.gravityForce)
-            .add(this.liftForce)
-            .add(this.dragForce)
-            .add(this.thrustForce);
-
-        // Acceleration (F = ma => a = F/m)
-        const mass = this.getMass();
-        this.acceleration.copy(netForce).divideScalar(mass);
-
-        // Update velocity (v = v0 + a*t)
-        this.velocity.add(this.acceleration.clone().multiplyScalar(deltaTime));
-
-        // Apply some damping to prevent infinite speed buildup (optional)
-        this.velocity.multiplyScalar(0.995);
-    }
-
-    applyForcesToAirplane() {
-        this.airplane.position.add(this.velocity.clone().multiplyScalar(0.01666)); // Assuming ~60 FPS for deltaTime compensation
-
-        // Apply rotation based on user input (rudder, elevator, ailerons would control rotation)
-        this.airplane.rotation.y += this.yaw * 0.02;
-        this.airplane.rotation.x += this.pitch * 0.02;
-        this.airplane.rotation.z = this.roll * 0.02; // Simple roll
-
-        // Reset rotation inputs for the next frame
-        this.pitch = 0;
-        this.yaw = 0;
-        this.roll = 0;
-    }
-
-    applyControl(control, value) {
-        switch (control) {
-            case 'pitch':
-                this.pitch = value;
-                break;
-            case 'yaw':
-                this.yaw = value;
-                break;
-            case 'roll':
-                this.roll = value;
-                break;
-            case 'throttle':
-                this.airplane.speed = value; // Assuming 'value' is between 0 and 1
-                break;
-        }
+        // Optional: Add some angular damping if not using Cannon's built-in damping sufficiently
+        // body.angularVelocity.scale(0.98, body.angularVelocity);
     }
 }
