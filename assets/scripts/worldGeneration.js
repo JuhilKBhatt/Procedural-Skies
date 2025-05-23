@@ -52,7 +52,7 @@ export function generateTerrain(scene, world) { // Added 'scene' argument
     terrainMesh.receiveShadow = true;
 
     scene.add(terrainMesh);
-    populateWorld(scene, terrainMesh);
+    //populateWorld(scene, terrainMesh);
 
     // Create a Cannon.js Heightfield for the terrain
     const matrix = [];

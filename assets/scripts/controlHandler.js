@@ -5,11 +5,11 @@ export class ControlHandler {
         this.keys = {};
 
         // Store current throttle state locally in ControlHandler
-        this.currentThrottle = 0.0; // Initial throttle is 0
+        this.currentThrottle = 0.1; // Initial throttle is 10% for takeoff
         if (this.airplane && this.airplane.flightPhysics) {
             this.currentThrottle = this.airplane.flightPhysics.throttle; // Sync with physics if already set
         }
-        this.throttleStep = 0.01; // Smoother throttle adjustment
+        this.throttleStep = 0.05; // Smoother throttle adjustment
 
         this.bindEvents();
         this.updateAirplane(); // Initialize controls (especially neutrals)
@@ -68,9 +68,9 @@ export class ControlHandler {
 
 
         // Update yaw (rudder)
-        if (this.keys['ArrowLeft']) {
+        if (this.keys['a']) {
             yawInput = 1; // Yaw left
-        } else if (this.keys['ArrowRight']) {
+        } else if (this.keys['d']) {
             yawInput = -1; // Yaw right
         }
         this.airplane.applyControl('yaw', yawInput);

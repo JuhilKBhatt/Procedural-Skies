@@ -10,7 +10,7 @@ export function createAirplane(scene, world) {
     const airplane = new THREE.Group();
     loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02); // Ensure this correctly loads and scales
     airplane.position.set(0, 100, -180);
-    
+
     airplane.rotation.y = -Math.PI / 2; // To make local +X point to world +Z
 
     // For this example, let's use the original orientation and assume FlightPhysics's local Z is forward.
@@ -108,9 +108,9 @@ export function createAirplane(scene, world) {
         animateAirplaneEngine(this, this.flightPhysics.throttle);
     };
 
-    // airplane.animateAilerons = function() {
-    //     animateAirplaneAilerons(this, this.targetLeftAileronRotation, this.targetRightAileronRotation);
-    // };
+    //airplane.animateAilerons = function() {
+    //    animateAirplaneAilerons(this, this.targetLeftAileronRotation, this.targetRightAileronRotation);
+    //};
 
     scene.add(airplane);
     return airplane;

@@ -7,7 +7,10 @@ export function animateAirplaneRudder(airplane) {
     if (!airplane) return;
 
     const rudder = airplane.getObjectByName('Tail');
-    if (!rudder) return;
+    if (!rudder) {
+        console.error('Rudder not found in airplane model');
+        return;
+    };
 
     rudder.rotation.y = THREE.MathUtils.lerp(rudder.rotation.z, airplane.targetRudderRotationZ, lerpFactor);
 }
@@ -16,7 +19,10 @@ export function animateAirplaneElevator(airplane) {
     if (!airplane) return;
 
     const elevator = airplane.getObjectByName('Plane001');
-    if (!elevator) return;
+    if (!elevator){
+        console.error('Elevator not found in airplane model');
+        return;
+    };
 
     elevator.rotation.x = THREE.MathUtils.lerp(elevator.rotation.x, airplane.targetElevatorRotationX, lerpFactor);
 }
@@ -26,6 +32,7 @@ export function animateAirplaneEngine(airplane, speed) {
 
     const engine = airplane.getObjectByName('wingRoot');
     if (!engine) {
+        console.error('Engine not found in airplane model');
         return;
     }
 
