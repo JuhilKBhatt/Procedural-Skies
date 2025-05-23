@@ -57,9 +57,9 @@ export class ControlHandler {
         // Update elevator (can be overridden by specific pitch keys if added)
         // If 'w' or 's' are intended for direct pitch control:
         if (this.keys['w']) {
-            elevatorInput = 1; // Pitch up
+            elevatorInput = 0.1; // Pitch up
         } else if (this.keys['s']) {
-            elevatorInput = -1; // Pitch down
+            elevatorInput = -0.1; // Pitch down
         } else if (!this.keys['ArrowUp'] && !this.keys['ArrowDown']) {
             // Neutral elevator if no throttle/pitch keys are pressed
             elevatorInput = 0;
@@ -69,9 +69,9 @@ export class ControlHandler {
 
         // Update yaw (rudder)
         if (this.keys['a']) {
-            yawInput = 1; // Yaw left
+            yawInput = 0.05; // Yaw left
         } else if (this.keys['d']) {
-            yawInput = -1; // Yaw right
+            yawInput = -0.05; // Yaw right
         }
         this.airplane.applyControl('yaw', yawInput);
 
