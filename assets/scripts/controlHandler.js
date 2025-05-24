@@ -45,11 +45,8 @@ export class ControlHandler {
         // Update throttle
         if (this.keys['ArrowUp']) {
             newThrottle = Math.min(1, this.currentThrottle + this.throttleStep);
-            // Apply some elevator for takeoff assist, reduce as speed increases or make it conditional
-            elevatorInput = 0.3;
         } else if (this.keys['ArrowDown']) {
             newThrottle = Math.max(0, this.currentThrottle - this.throttleStep);
-            elevatorInput = -0.1; // Less aggressive down elevator
         }
         this.currentThrottle = newThrottle;
         this.airplane.applyControl('throttle', this.currentThrottle);
@@ -60,9 +57,6 @@ export class ControlHandler {
             elevatorInput = 0.1; // Pitch up
         } else if (this.keys['s']) {
             elevatorInput = -0.1; // Pitch down
-        } else if (!this.keys['ArrowUp'] && !this.keys['ArrowDown']) {
-            // Neutral elevator if no throttle/pitch keys are pressed
-            elevatorInput = 0;
         }
         this.airplane.applyControl('elevator', elevatorInput);
 
