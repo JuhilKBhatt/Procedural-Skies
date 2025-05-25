@@ -8,7 +8,7 @@ import * as CANNON from 'cannon-es';
 export function createAirplane(scene, world) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
     const airplane = new THREE.Group();
-    loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.02); // Ensure this correctly loads and scales
+    loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.01); // Ensure this correctly loads and scales
     airplane.position.set(0, 100, -180);
 
     airplane.rotation.y = -Math.PI / 2; // To make local +X point to world +Z

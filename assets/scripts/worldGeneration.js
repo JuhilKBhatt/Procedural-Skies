@@ -5,8 +5,8 @@ import { calculateVertexColor } from './worldColour.js';
 import { populateChunk } from './worldPopulate.js'; // Changed from populateWorld
 import * as CANNON from 'cannon-es';
 
-export const CHUNK_SIZE = 100;
-export const CHUNK_SEGMENTS = 50;
+export const CHUNK_SIZE = 250;
+export const CHUNK_SEGMENTS = 80;
 const TERRAIN_MAX_HEIGHT = 80;
 const TERRAIN_MIN_HEIGHT = -40;
 const NOISE_INPUT_SCALE = 0.007;
