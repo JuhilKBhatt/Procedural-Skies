@@ -25,7 +25,7 @@ export function loadFBXModel(modelPath, location, scene, scale = 0.0005) {
             (xhr) => { // onProgress callback
                 if (xhr.lengthComputable) {
                     const percentComplete = xhr.loaded / xhr.total * 100;
-                    // console.log(`Loading model: ${modelPath} , ${Math.round(percentComplete)}% complete`); // Optional progress log
+                    console.log(`Loading model: ${modelPath} , ${Math.round(percentComplete)}% complete`); // Optional progress log
                 }
             },
             (error) => { // onError callback

@@ -245,7 +245,7 @@ function animate() {
 
     if (controlHandler) {
         try {
-            controlHandler.update(deltaTime);
+            controlHandler.updateAirplane();
         } catch (error) {
             console.error("Error in controlHandler.update():", error);
         }

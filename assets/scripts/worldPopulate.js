@@ -1,7 +1,7 @@
 // worldPopulate.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js'; // Assuming this path is correct
-import { CHUNK_SIZE } from './worldGeneration.js'; // Import CHUNK_SIZE
+import { CHUNK_SIZE, TERRAIN_MAX_HEIGHT } from './worldGeneration.js'; // Import CHUNK_SIZE
 
 const TREE_MODELS = [
     'assets/models/tree/TreePine.fbx',
@@ -22,10 +22,10 @@ const CLOUD_MODELS = [
 const ALL_TERRAIN_MODELS = [...TREE_MODELS, ...ROCK_MODELS, ...SEAWEED_MODELS];
 
 // Density parameters (drastically reduced for testing - TUNE THESE YOURSELF!)
-const CLUSTERS_PER_CHUNK = 5;   // How many small clusters of objects per chunk
-const OBJECTS_PER_CLUSTER = 12;  // Objects within each cluster (was 50)
+const CLUSTERS_PER_CHUNK = 4;   // How many small clusters of objects per chunk
+const OBJECTS_PER_CLUSTER = 25;  // Objects within each cluster (was 50)
 const CLUSTER_RADIUS_MAX = 20;    // Max radius of a cluster
-const CLOUDS_PER_CHUNK = 3;     // Number of clouds (was 50)
+const CLOUDS_PER_CHUNK = 5;     // Number of clouds (was 50)
 
 const RAYCAST_START_HEIGHT = 150; // Should be above max terrain height + object height (TERRAIN_MAX_HEIGHT is 80)
 
@@ -98,9 +98,9 @@ export async function populateChunk(scene, chunkMesh, chunkGridX, chunkGridZ) {
         const cloudWorldX = chunkWorldX + cloudLocalX;
         const cloudLocalZ = (Math.random() - 0.5) * CHUNK_SIZE;
         const cloudWorldZ = chunkWorldZ + cloudLocalZ;
-        const cloudWorldY = Math.random() * 50 + (TERRAIN_MAX_HEIGHT + 70);
+        const cloudWorldY = Math.random() * 50 + (TERRAIN_MAX_HEIGHT + 30);
         const cloudModelPath = CLOUD_MODELS[Math.floor(Math.random() * CLOUD_MODELS.length)];
-        const cloudScale = Math.random() * 0.02 + 0.05;
+        const cloudScale = Math.random() * 5 + 10; 
         modelPlacementPromises.push(placeModel(cloudModelPath, cloudWorldX, cloudWorldZ, cloudWorldY, cloudScale));
     }
 
