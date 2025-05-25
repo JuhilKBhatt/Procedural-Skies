@@ -2,35 +2,61 @@
 import * as THREE from 'three';
 import { generateCombinedTerrain } from './perlinNoise.js';
 import { calculateVertexColor } from './worldColour.js';
-import { populateWorld } from './worldPopulate.js';
+// import { populateWorld } from './worldPopulate.js'; // If you re-introduce this, it needs to be chunk-aware
 import * as CANNON from 'cannon-es';
 
-export function generateTerrain(scene, world, terrainMaterial) { // Added 'terrainMaterial' argument
-    const terrainSize = 1000; // Width and depth of the terrain plane
-    const terrainSegments = 100; // Number of segments
-    const terrainMaxHeight = 100; // Maximum peak height of the terrain
-    const terrainMinHeight = -50; // Minimum depth
+export const CHUNK_SIZE = 200; // Width and depth of a terrain chunk
+export const CHUNK_SEGMENTS = 50; // Number of segments per chunk side (resolution)
+const TERRAIN_MAX_HEIGHT = 100;
+const TERRAIN_MIN_HEIGHT = -50;
+const NOISE_INPUT_SCALE = 0.004; // Adjust for terrain feature scaling
 
-    const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+export function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world, terrainMaterial) {
+    const geometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SEGMENTS, CHUNK_SEGMENTS);
     const vertices = geometry.attributes.position.array;
-    const colors = []; // Array to hold vertex colors
+    const colors = [];
+    const heightData = []; // For Cannon.js Heightfield
 
-    const noiseInputScale = 0.002; // Scale for world coordinates before passing to noise function
+    for (let i = 0; i <= CHUNK_SEGMENTS; i++) { // Note: CHUNK_SEGMENTS+1 vertices along each edge
+        heightData[i] = [];
+        for (let j = 0; j <= CHUNK_SEGMENTS; j++) {
+            const vertexIndex = (i * (CHUNK_SEGMENTS + 1) + j) * 3;
 
-    for (let i = 0; i < vertices.length; i += 3) {
-        // vertices are [x1, y1, z1, x2, y2, z2, ...]
-        const worldX = vertices[i];
-        const worldY = vertices[i + 1];
+            // Calculate local vertex positions within the chunk
+            const localX = vertices[vertexIndex];     // Ranges from -CHUNK_SIZE/2 to CHUNK_SIZE/2
+            const localZ = vertices[vertexIndex + 1]; // Correct: PlaneGeometry y becomes world Z
 
-        // Calculate normalized height (0 to 1) using Perlin noise combination
-        const normalizedHeight = generateCombinedTerrain(worldX * noiseInputScale, worldY * noiseInputScale, 0);
-        const actualHeight = terrainMinHeight + normalizedHeight * (terrainMaxHeight - terrainMinHeight);
-        vertices[i + 2] = actualHeight;
+            // Calculate world coordinates for noise sampling
+            // The origin of the PlaneGeometry is at its center.
+            // chunkGridX/Z are indices of the chunk.
+            const worldX = (chunkGridX * CHUNK_SIZE) + localX;
+            const worldZ = (chunkGridZ * CHUNK_SIZE) + localZ; // Mesh's Y is world's Z before rotation
 
-        // Determine vertex color based on normalized height using the function from worldColour.js
-        const { r, g, b } = calculateVertexColor(normalizedHeight);
-        colors.push(r, g, b);
+            const normalizedHeight = generateCombinedTerrain(
+                worldX * NOISE_INPUT_SCALE,
+                worldZ * NOISE_INPUT_SCALE, // Use worldZ for the 2D noise input
+                0 // Assuming z in noise3D is not heavily used for 2.5D terrain
+            );
+            const actualHeight = TERRAIN_MIN_HEIGHT + normalizedHeight * (TERRAIN_MAX_HEIGHT - TERRAIN_MIN_HEIGHT);
+
+            vertices[vertexIndex + 2] = actualHeight; // Set Z for PlaneGeometry (becomes Y after rotation)
+            heightData[i][j] = actualHeight;
+
+            const { r, g, b } = calculateVertexColor(normalizedHeight);
+            colors.push(r, g, b);
+        }
     }
+    // Cannon Heightfield expects data rows to be along its x-axis and columns along its z-axis.
+    // Our PlaneGeometry vertices are ordered by row then column.
+    // If plane rotated -PI/2 around X: plane's X -> world X, plane's Y -> world Z, plane's Z -> world Y
+    // Height data needs to be ordered consistent with how Cannon.js Heightfield interprets it.
+    // With rotation x = -Math.PI / 2:
+    // Heightfield X corresponds to Plane's X.
+    // Heightfield Z corresponds to Plane's Y.
+    // The way heightData is populated (outer loop i for Z-like, inner loop j for X-like on the plane)
+    // might need reversing for Cannon.js depending on its convention if issues arise.
+    // For now, assuming this order matches Cannon's expectation after the body's rotation.
+
 
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geometry.attributes.position.needsUpdate = true;
@@ -39,29 +65,76 @@ export function generateTerrain(scene, world, terrainMaterial) { // Added 'terra
     const material = new THREE.MeshPhongMaterial({
         vertexColors: true,
         shininess: 5,
+        // wireframe: true, // For debugging chunk boundaries
     });
 
-    const terrainMesh = new THREE.Mesh(geometry, material);
+    const terrainChunkMesh = new THREE.Mesh(geometry, material);
+    terrainChunkMesh.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
 
-    // Rotate the plane to be horizontal
-    terrainMesh.rotation.x = -Math.PI / 2;
-    terrainMesh.position.y = 0;
+    // Position the chunk in the world
+    // The PlaneGeometry vertices are relative to its center, so the mesh itself is placed at the chunk's origin.
+    terrainChunkMesh.position.set(
+        chunkGridX * CHUNK_SIZE,
+        0, // Base Y position (heights are relative to this)
+        chunkGridZ * CHUNK_SIZE
+    );
 
-    // Enable shadows for the terrain
-    terrainMesh.castShadow = true;
-    terrainMesh.receiveShadow = true;
+    terrainChunkMesh.castShadow = true;
+    terrainChunkMesh.receiveShadow = true;
+    scene.add(terrainChunkMesh);
 
-    scene.add(terrainMesh);
-    //populateWorld(scene, terrainMesh);
+    // --- Physics Body for the Chunk ---
+    const heightfieldShape = new CANNON.Heightfield(heightData, {
+        elementSize: CHUNK_SIZE / CHUNK_SEGMENTS // Distance between data points
+    });
 
-    // --- START: MODIFICATION FOR FLAT PLANE COLLIDER ---
-    const planeShape = new CANNON.Plane();
-    const groundBody = new CANNON.Body({ mass: 0, material: terrainMaterial }); // Assign the terrain material
-    groundBody.addShape(planeShape);
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate the plane to face upwards
-    groundBody.position.set(0, 0, 0); // Set the Y level for the collider (adjust as needed)
-    world.addBody(groundBody);
-    // --- END: MODIFICATION FOR FLAT PLANE COLLIDER ---
+    const terrainChunkBody = new CANNON.Body({
+        mass: 0, // Static
+        material: terrainMaterial
+    });
+    terrainChunkBody.addShape(heightfieldShape);
 
-    return terrainMesh; // Keep returning the Three.js mesh
+    // Position and rotate the physics body to match the visual mesh
+    // The Heightfield's local origin is at its first data point.
+    // We need to offset it so its center aligns with the PlaneGeometry's center.
+    terrainChunkBody.position.set(
+        (chunkGridX - 0.5) * CHUNK_SIZE, // Offset by -CHUNK_SIZE/2 in X
+        0,                               // Base Y position
+        (chunkGridZ - 0.5) * CHUNK_SIZE  // Offset by -CHUNK_SIZE/2 in Z
+    );
+    // Rotate the heightfield to be flat (Cannon.js Heightfield is y-up by default)
+    // No, Heightfield assumes Y is height. The shape itself needs to be aligned.
+    // The heights are directly used. Rotation of body aligns it.
+    terrainChunkBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Match visual mesh rotation
+
+
+    // Adjust position due to Heightfield anchor point vs PlaneGeometry anchor point
+    // PlaneGeometry origin is center. Heightfield origin is corner.
+    // The shape is defined in its local space. The body's position is its world position.
+    // The offset for the Heightfield within its local frame to align with the mesh's center:
+    const shapeOffset = new CANNON.Vec3(CHUNK_SIZE / 2, 0, CHUNK_SIZE / 2);
+    // We need to rotate this offset according to the body's quaternion before adding it.
+    // However, simpler to adjust the body's position directly.
+    // The provided `heightData` starts from what corresponds to one corner of the chunk.
+    // The `terrainChunkBody.position` should be the world coordinates of that corner.
+    terrainChunkBody.position.set(
+        chunkGridX * CHUNK_SIZE - CHUNK_SIZE / 2,
+        0, // This Y is critical, it's the base height level of the physics terrain.
+           // The values in heightData are relative to this.
+        chunkGridZ * CHUNK_SIZE - CHUNK_SIZE / 2
+    );
+    // The shape itself needs to be rotated if its "up" isn't Y.
+    // But Heightfield expects heights along Y. So the body's quaternion handles orientation.
+
+    world.addBody(terrainChunkBody);
+
+    // If you had populateWorld, you'd call it here, passing chunk-specific info
+    // populateWorld(scene, terrainChunkMesh, chunkGridX, chunkGridZ);
+
+    return {
+        mesh: terrainChunkMesh,
+        body: terrainChunkBody,
+        chunkGridX: chunkGridX,
+        chunkGridZ: chunkGridZ
+    };
 }
