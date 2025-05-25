@@ -75,14 +75,25 @@ function getChunkKey(chunkX, chunkZ) {
     return `${chunkX},${chunkZ}`;
 }
 
-function updateTerrainChunks() {
-    // This check is important: ensure airplane and its physics body are ready.
+// Helper function to dispose of materials and textures (add this in main.js)
+function cleanMaterial(material) {
+    material.dispose();
+    for (const key of Object.keys(material)) {
+        const value = material[key];
+        if (value && typeof value === 'object' && value.isTexture) {
+            value.dispose();
+        }
+    }
+}
+
+
+// Modify updateTerrainChunks to be async if generateTerrainChunk is async
+async function updateTerrainChunks() { // Added async
     if (!airplane || !airplane.physicsBody || !airplane.physicsBody.position) {
-        // console.warn("updateTerrainChunks: Airplane or physicsBody not ready.");
         return;
     }
 
-    const playerX = airplane.physicsBody.position.x; // Use physics body for logical position
+    const playerX = airplane.physicsBody.position.x;
     const playerZ = airplane.physicsBody.position.z;
 
     const currentChunkX = Math.floor(playerX / CHUNK_SIZE);
@@ -91,12 +102,12 @@ function updateTerrainChunks() {
     if (currentChunkX === lastPlayerChunkX && currentChunkZ === lastPlayerChunkZ && activeChunks.size > 0) {
         return;
     }
-    // console.log(`Player at chunk: ${currentChunkX}, ${currentChunkZ}`);
 
     lastPlayerChunkX = currentChunkX;
     lastPlayerChunkZ = currentChunkZ;
 
     const chunksToKeep = new Set();
+    const loadPromises = []; // To load chunks in parallel if desired
 
     for (let i = -VIEW_DISTANCE_CHUNKS; i <= VIEW_DISTANCE_CHUNKS; i++) {
         for (let j = -VIEW_DISTANCE_CHUNKS; j <= VIEW_DISTANCE_CHUNKS; j++) {
@@ -106,31 +117,94 @@ function updateTerrainChunks() {
             chunksToKeep.add(key);
 
             if (!activeChunks.has(key)) {
-                // console.log(`Loading chunk: ${chunkX}, ${chunkZ}`);
-                try {
-                    const newChunk = generateTerrainChunk(chunkX, chunkZ, scene, world, terrainMaterial);
-                    activeChunks.set(key, newChunk);
-                } catch (error) {
-                    console.error(`Error generating chunk ${chunkX},${chunkZ}:`, error);
-                }
+                // console.log(`Requesting load for chunk: ${chunkX}, ${chunkZ}`);
+                // Add a placeholder to prevent re-requesting before promise resolves
+                activeChunks.set(key, { status: 'loading' });
+                
+                // generateTerrainChunk is now async
+                loadPromises.push(
+                    generateTerrainChunk(chunkX, chunkZ, scene, world, terrainMaterial)
+                        .then(newChunk => {
+                            if (activeChunks.get(key)?.status === 'loading') { // Check if still relevant
+                                activeChunks.set(key, newChunk);
+                                // console.log(`Successfully loaded chunk: ${key}`);
+                            } else {
+                                // Chunk was marked for unloading before it finished loading
+                                // Clean up the newly loaded but now unwanted chunk
+                                scene.remove(newChunk.mesh);
+                                if (newChunk.mesh.geometry) newChunk.mesh.geometry.dispose();
+                                if (newChunk.mesh.material) cleanMaterial(newChunk.mesh.material);
+                                world.removeBody(newChunk.body);
+                                if (newChunk.populatedObjects) {
+                                    newChunk.populatedObjects.forEach(obj => {
+                                        scene.remove(obj);
+                                        obj.traverse(child => {
+                                            if (child.isMesh) {
+                                                if (child.geometry) child.geometry.dispose();
+                                                if (child.material) {
+                                                    if (Array.isArray(child.material)) {
+                                                        child.material.forEach(cleanMaterial);
+                                                    } else {
+                                                        cleanMaterial(child.material);
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    });
+                                }
+                                console.log(`Discarded late-loaded chunk: ${key}`);
+                            }
+                        })
+                        .catch(error => {
+                            console.error(`Error generating chunk ${chunkX},${chunkZ}:`, error);
+                            if (activeChunks.get(key)?.status === 'loading') {
+                                activeChunks.delete(key); // Remove placeholder on error
+                            }
+                        })
+                );
             }
         }
     }
 
-    activeChunks.forEach((chunkData, key) => {
-        if (!chunksToKeep.has(key)) {
-            // console.log(`Unloading chunk: ${key}`);
-            scene.remove(chunkData.mesh);
-            if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
-            // Only dispose material if it's unique to this chunk and not shared
-            // For this setup, the material instance in worldGeneration is new each time, so it's safe.
-            if (chunkData.mesh.material) chunkData.mesh.material.dispose();
+    await Promise.all(loadPromises); // Wait for all loading operations to complete
 
-            world.removeBody(chunkData.body);
+    // Unload chunks out of render distance
+    activeChunks.forEach((chunkData, key) => {
+        if (!chunksToKeep.has(key) && chunkData.status !== 'loading') { // Don't unload if it's still loading
+            // console.log(`Unloading chunk: ${key}`);
+            if (chunkData.mesh) {
+                scene.remove(chunkData.mesh);
+                if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
+                if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material); // Use cleanMaterial
+            }
+            if (chunkData.body) {
+                world.removeBody(chunkData.body);
+            }
+
+            // Clean up populated objects
+            if (chunkData.populatedObjects) {
+                // console.log(`Cleaning ${chunkData.populatedObjects.length} populated objects for chunk ${key}`);
+                chunkData.populatedObjects.forEach(obj => {
+                    scene.remove(obj); // obj is the root of the FBX model
+                    obj.traverse(child => {
+                        if (child.isMesh) {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                // Material can be an array
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(cleanMaterial);
+                                } else {
+                                    cleanMaterial(child.material);
+                                }
+                            }
+                        }
+                    });
+                });
+            }
             activeChunks.delete(key);
         }
     });
-    light.shadow.camera.updateProjectionMatrix();
+    if (light.shadow) light.shadow.camera.updateProjectionMatrix();
 }
 
 // --- Airplane and ControlHandler Initialization ---
@@ -210,6 +284,11 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
+if (airplane && airplane.physicsBody) {
+    console.log("Attempting initial chunk load...");
+    updateTerrainChunks().catch(error => console.error("Error during initial chunk load:", error));
+}
+
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
@@ -240,7 +319,7 @@ function animate() {
             }
         }
 
-        updateTerrainChunks(); // Update chunks based on airplane's new position
+        updateTerrainChunks().catch(error => console.error("Error during chunk update in animate:", error)); // Fire and forget promise
 
         light.position.set(
             airplane.position.x + CHUNK_SIZE * 0.5,
