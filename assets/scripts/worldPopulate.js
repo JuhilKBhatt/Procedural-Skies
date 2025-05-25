@@ -62,12 +62,11 @@ export async function populateChunk(scene, chunkMesh, chunkGridX, chunkGridZ) {
         }
 
         try {
-            // loadFBXModel MUST return the loaded THREE.Object3D or a Promise that resolves to it
-            const model = await loadFBXModel(modelPath, new THREE.Vector3(desiredWorldX, yPosition, desiredWorldZ), scene, 0.025); // Use the passed scale
-            return model || null; // Ensure it returns the model or null if loadFBXModel returns undefined on failure
+            // This 'await' will now correctly wait for the Promise from loadFBXModel
+            const model = await loadFBXModel(modelPath, new THREE.Vector3(desiredWorldX, yPosition, desiredWorldZ), scene, 0.025); // Ensure you are using the 'scale' parameter here
+            return model || null; 
         } catch (error) {
-            console.error(`Failed to load model ${modelPath}:`, error);
-            return null; // Indicate failure
+            return null; 
         }
     }
 
