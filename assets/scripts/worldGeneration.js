@@ -29,7 +29,7 @@ export async function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world,
 
             // World coordinates for noise generation
             const worldX_noise = (chunkGridX * CHUNK_SIZE) + localX_geom;
-            const worldZ_noise = (chunkGridZ * CHUNK_SIZE) + localY_geom; // Use localY_geom for Z noise input
+            const worldZ_noise = (chunkGridZ * -CHUNK_SIZE) + localY_geom; // Use localY_geom for Z noise input
 
             const normalizedHeight = generateCombinedTerrain(
                 worldX_noise * NOISE_INPUT_SCALE,
