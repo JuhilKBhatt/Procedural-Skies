@@ -117,25 +117,63 @@ function generateRiverMaskNoise(x, y, z) {
     const noiseVal = multiOctavePerlinNoise3D(x * 0.5, y * 0.5, z * 0.5, 6, 0.5, 2.0);
     return Math.abs(noiseVal * 2 - 1);
 }
+// Helper for smoothstep, if not already available
+function smoothstep(edge0, edge1, x) {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+}
 
-export function generateCombinedTerrain(x, y, z, mountain_threshold = 0.6, river_threshold = 0.1, river_depth = 0.15) {
+export function generateCombinedTerrain(x, y, z,
+    mountain_threshold = 0.6, // This might now represent a midpoint or upper bound of a blend zone
+    mountain_blend_range = 0.2, // How wide the transition zone is
+    river_threshold = 0.1,
+    river_blend_range = 0.05, // Transition zone for rivers
+    river_depth = 0.15) {
+
     const terrainType = generateTerrainTypeNoise(x, y, z);
     const plainsNoiseVal = generatePlainsNoise(x, y, z);
     const mountainNoiseVal = generateMountainNoise(x, y, z);
     let terrainHeight;
 
-    if (terrainType < mountain_threshold) {
-        const blendFactor = terrainType / mountain_threshold;
-        terrainHeight = lerp(blendFactor, plainsNoiseVal, mountainNoiseVal);
+    // Smoothly blend between plains and mountains
+    // Determine the start and end of the transition zone for mountains
+    const mountain_lower_bound = mountain_threshold - mountain_blend_range / 2;
+    const mountain_upper_bound = mountain_threshold + mountain_blend_range / 2;
+
+    // Calculate mountain influence (0 for pure plains, 1 for pure mountain)
+    let mountainInfluence;
+    if (mountain_blend_range <= 0) { // Handle no blend range (hard switch)
+        mountainInfluence = (terrainType >= mountain_threshold) ? 1.0 : 0.0;
     } else {
-        terrainHeight = mountainNoiseVal;
+        // Using smoothstep for a smoother transition
+        mountainInfluence = smoothstep(mountain_lower_bound, mountain_upper_bound, terrainType);
+        // Alternatively, for a linear transition:
+        // const t = (terrainType - mountain_lower_bound) / mountain_blend_range;
+        // mountainInfluence = Math.max(0, Math.min(1, t));
     }
+    terrainHeight = lerp(mountainInfluence, plainsNoiseVal, mountainNoiseVal);
 
     const riverMask = generateRiverMaskNoise(x, y, z);
-    if (riverMask < river_threshold) {
-        const riverInfluence = 1.0 - (riverMask / river_threshold);
-        terrainHeight -= riverInfluence * river_depth;
-        terrainHeight = Math.max(terrainHeight, 0); // Ensure rivers don't go below "sea level" if 0 is sea level
+    // Smoothly apply river depth
+    const river_lower_bound = river_threshold - river_blend_range / 2;
+    const river_upper_bound = river_threshold + river_blend_range / 2;
+
+    let riverFactor;
+    if (river_blend_range <= 0) {
+        riverFactor = (riverMask < river_threshold) ? 1.0 : 0.0;
+    } else {
+        // riverFactor will be 1 deep inside the river criteria, 0 outside, smooth transition
+        // We want riverFactor to be 1 when riverMask is low, and 0 when riverMask is high.
+        // So, we invert the smoothstep logic or use 1.0 - smoothstep(...)
+        const t_river = (riverMask - river_lower_bound) / river_blend_range;
+        riverFactor = 1.0 - Math.max(0, Math.min(1, t_river)); // Linear, inverted
+        // For smoothstep: riverFactor = 1.0 - smoothstep(river_lower_bound, river_upper_bound, riverMask);
     }
+
+    if (riverFactor > 0) {
+        terrainHeight -= riverFactor * river_depth;
+    }
+
+    // Ensure final height is clamped to the normalized range [0,1]
     return Math.max(0, Math.min(1, terrainHeight));
 }

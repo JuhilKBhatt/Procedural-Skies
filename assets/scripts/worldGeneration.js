@@ -55,7 +55,7 @@ export async function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world,
 
     const material = new THREE.MeshPhongMaterial({
         vertexColors: true,
-        shininess: 5,
+        shininess: 10
     });
 
     const terrainChunkMesh = new THREE.Mesh(geometry, material);
@@ -68,7 +68,12 @@ export async function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world,
     // Note on Heightfield data structure:
     // Cannon-es Heightfield expects data[yIndex][xIndex] where its local y is world Z, local x is world X after rotation.
     // Our heightData[i][j] where i is z-segment index and j is x-segment index fits this.
-    const heightfieldShape = new CANNON.Heightfield(heightData, {
+    const cannonHeightData = [];
+    for (let idx = 0; idx <= CHUNK_SEGMENTS; idx++) {
+        cannonHeightData[idx] = heightData[CHUNK_SEGMENTS - idx];
+    }
+
+    const heightfieldShape = new CANNON.Heightfield(cannonHeightData, { // Use reversed data
         elementSize: CHUNK_SIZE / CHUNK_SEGMENTS
     });
     const terrainChunkBody = new CANNON.Body({ mass: 0, material: terrainMaterial });
