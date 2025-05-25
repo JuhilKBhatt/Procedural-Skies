@@ -1,10 +1,11 @@
-// main.js (Partial - focus on airplane initialization and related logic)
+// main.js
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
-import { createAirplane } from './assets/scripts/airplane.js'; // Make sure this file/function is working
-import { ControlHandler } from './assets/scripts/controlHandler.js'; // Make sure this file/class is working
+import { createAirplane } from './assets/scripts/airplane.js';
+import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
+import { getChunkKey, cleanMaterial } from './assets/scripts/Utility.js'; // Import from Utility.js
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -15,7 +16,7 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 const world = new CANNON.World();
-world.gravity.set(0, -4, 0);
+world.gravity.set(0, -4, 0); // Adjusted gravity
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.solver.iterations = 10;
 
@@ -71,24 +72,7 @@ const VIEW_DISTANCE_CHUNKS = 2;
 let lastPlayerChunkX = null;
 let lastPlayerChunkZ = null;
 
-function getChunkKey(chunkX, chunkZ) {
-    return `${chunkX},${chunkZ}`;
-}
-
-// Helper function to dispose of materials and textures (add this in main.js)
-function cleanMaterial(material) {
-    material.dispose();
-    for (const key of Object.keys(material)) {
-        const value = material[key];
-        if (value && typeof value === 'object' && value.isTexture) {
-            value.dispose();
-        }
-    }
-}
-
-
-// Modify updateTerrainChunks to be async if generateTerrainChunk is async
-async function updateTerrainChunks() { // Added async
+async function updateTerrainChunks() {
     if (!airplane || !airplane.physicsBody || !airplane.physicsBody.position) {
         return;
     }
@@ -107,33 +91,26 @@ async function updateTerrainChunks() { // Added async
     lastPlayerChunkZ = currentChunkZ;
 
     const chunksToKeep = new Set();
-    const loadPromises = []; // To load chunks in parallel if desired
+    const loadPromises = [];
 
     for (let i = -VIEW_DISTANCE_CHUNKS; i <= VIEW_DISTANCE_CHUNKS; i++) {
         for (let j = -VIEW_DISTANCE_CHUNKS; j <= VIEW_DISTANCE_CHUNKS; j++) {
             const chunkX = currentChunkX + i;
             const chunkZ = currentChunkZ + j;
-            const key = getChunkKey(chunkX, chunkZ);
+            const key = getChunkKey(chunkX, chunkZ); // Uses imported function
             chunksToKeep.add(key);
 
             if (!activeChunks.has(key)) {
-                // console.log(`Requesting load for chunk: ${chunkX}, ${chunkZ}`);
-                // Add a placeholder to prevent re-requesting before promise resolves
                 activeChunks.set(key, { status: 'loading' });
-                
-                // generateTerrainChunk is now async
                 loadPromises.push(
                     generateTerrainChunk(chunkX, chunkZ, scene, world, terrainMaterial)
                         .then(newChunk => {
-                            if (activeChunks.get(key)?.status === 'loading') { // Check if still relevant
+                            if (activeChunks.get(key)?.status === 'loading') {
                                 activeChunks.set(key, newChunk);
-                                // console.log(`Successfully loaded chunk: ${key}`);
                             } else {
-                                // Chunk was marked for unloading before it finished loading
-                                // Clean up the newly loaded but now unwanted chunk
                                 scene.remove(newChunk.mesh);
                                 if (newChunk.mesh.geometry) newChunk.mesh.geometry.dispose();
-                                if (newChunk.mesh.material) cleanMaterial(newChunk.mesh.material);
+                                if (newChunk.mesh.material) cleanMaterial(newChunk.mesh.material); // Uses imported function
                                 world.removeBody(newChunk.body);
                                 if (newChunk.populatedObjects) {
                                     newChunk.populatedObjects.forEach(obj => {
@@ -142,11 +119,7 @@ async function updateTerrainChunks() { // Added async
                                             if (child.isMesh) {
                                                 if (child.geometry) child.geometry.dispose();
                                                 if (child.material) {
-                                                    if (Array.isArray(child.material)) {
-                                                        child.material.forEach(cleanMaterial);
-                                                    } else {
-                                                        cleanMaterial(child.material);
-                                                    }
+                                                    cleanMaterial(child.material); // Uses imported function
                                                 }
                                             }
                                         });
@@ -158,7 +131,7 @@ async function updateTerrainChunks() { // Added async
                         .catch(error => {
                             console.error(`Error generating chunk ${chunkX},${chunkZ}:`, error);
                             if (activeChunks.get(key)?.status === 'loading') {
-                                activeChunks.delete(key); // Remove placeholder on error
+                                activeChunks.delete(key);
                             }
                         })
                 );
@@ -166,36 +139,26 @@ async function updateTerrainChunks() { // Added async
         }
     }
 
-    await Promise.all(loadPromises); // Wait for all loading operations to complete
+    await Promise.all(loadPromises);
 
-    // Unload chunks out of render distance
     activeChunks.forEach((chunkData, key) => {
-        if (!chunksToKeep.has(key) && chunkData.status !== 'loading') { // Don't unload if it's still loading
-            // console.log(`Unloading chunk: ${key}`);
+        if (!chunksToKeep.has(key) && chunkData.status !== 'loading') {
             if (chunkData.mesh) {
                 scene.remove(chunkData.mesh);
                 if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
-                if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material); // Use cleanMaterial
+                if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material); // Uses imported function
             }
             if (chunkData.body) {
                 world.removeBody(chunkData.body);
             }
-
-            // Clean up populated objects
             if (chunkData.populatedObjects) {
-                // console.log(`Cleaning ${chunkData.populatedObjects.length} populated objects for chunk ${key}`);
                 chunkData.populatedObjects.forEach(obj => {
-                    scene.remove(obj); // obj is the root of the FBX model
+                    scene.remove(obj);
                     obj.traverse(child => {
                         if (child.isMesh) {
                             if (child.geometry) child.geometry.dispose();
                             if (child.material) {
-                                // Material can be an array
-                                if (Array.isArray(child.material)) {
-                                    child.material.forEach(cleanMaterial);
-                                } else {
-                                    cleanMaterial(child.material);
-                                }
+                                cleanMaterial(child.material); // Uses imported function
                             }
                         }
                     });
@@ -212,27 +175,22 @@ let airplane;
 let controlHandler;
 
 try {
-    airplane = createAirplane(scene, world); // CRITICAL: Ensure createAirplane is robust
+    airplane = createAirplane(scene, world);
 } catch (error) {
     console.error("Error during createAirplane():", error);
 }
 
 if (airplane) {
     console.log("Airplane object created:", airplane);
-    // Ensure physicsBody exists before trying to use it
     if (airplane.physicsBody) {
         console.log("Airplane physicsBody exists.");
         airplane.physicsBody.material = airplaneMaterial;
-        // Set initial position for the airplane
-        airplane.physicsBody.position.set(0, CHUNK_SIZE * 0.5, 0); // Start higher to avoid immediate ground collision
-        airplane.physicsBody.wakeUp(); // Ensure physics body is active
-
-        // Sync visual model to physics model initially
+        airplane.physicsBody.position.set(0, CHUNK_SIZE * 0.5, 0);
+        airplane.physicsBody.wakeUp();
         airplane.position.copy(airplane.physicsBody.position);
         airplane.quaternion.copy(airplane.physicsBody.quaternion);
     } else {
         console.error("Airplane created, but airplane.physicsBody is missing!");
-        // Fallback for visual positioning if no physics body
         airplane.position.set(0, CHUNK_SIZE * 0.5, 0);
     }
 
@@ -244,31 +202,27 @@ if (airplane) {
     });
 
     try {
-        controlHandler = new ControlHandler(airplane); // CRITICAL: Ensure ControlHandler is robust
+        controlHandler = new ControlHandler(airplane);
     } catch (error) {
         console.error("Error during new ControlHandler():", error);
     }
 
-    // Initial chunk load, only if airplane and its physics are ready
-    if (airplane.physicsBody) {
-        console.log("Attempting initial chunk load...");
-        updateTerrainChunks(); // Load chunks around the airplane's starting position
+    if (airplane.physicsBody) { // This first call to updateTerrainChunks is fine.
+        console.log("Attempting initial chunk load (inside airplane check)...");
+        updateTerrainChunks().catch(error => console.error("Error during initial chunk load (inside airplane check):", error));
     } else {
         console.warn("Skipping initial chunk load because airplane.physicsBody is missing.");
-        // Fallback camera if no physics body for initial chunk centering
         camera.position.set(0, 50, 100);
         controls.target.set(0,0,0);
     }
 
 } else {
     console.error("Airplane object was NOT created. Cannot proceed with airplane-dependent setup.");
-    // Fallback camera if airplane creation failed entirely
-    camera.position.set(0, 50, 100); // Basic camera setup
+    camera.position.set(0, 50, 100);
     controls.target.set(0,0,0);
     controls.update();
 }
 // --- End Airplane and ControlHandler Initialization ---
-
 
 const cameraOffset = new THREE.Vector3(0, 10, -30);
 const lookAtOffset = new THREE.Vector3(0, 5, 0);
@@ -284,24 +238,16 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-if (airplane && airplane.physicsBody) {
-    console.log("Attempting initial chunk load...");
-    updateTerrainChunks().catch(error => console.error("Error during initial chunk load:", error));
-}
-
 function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
     const fixedTimeStep = 1 / 60;
 
-    // Update controls only if controlHandler was successfully initialized
     if (controlHandler) {
         try {
             controlHandler.update(deltaTime);
         } catch (error) {
             console.error("Error in controlHandler.update():", error);
-            // Optionally disable controlHandler here to prevent further errors
-            // controlHandler = null;
         }
     }
 
@@ -319,49 +265,41 @@ function animate() {
             }
         }
 
-        updateTerrainChunks().catch(error => console.error("Error during chunk update in animate:", error)); // Fire and forget promise
+        updateTerrainChunks().catch(error => console.error("Error during chunk update in animate:", error));
 
         light.position.set(
             airplane.position.x + CHUNK_SIZE * 0.5,
-            airplane.position.y + CHUNK_SIZE, // Keep light above
+            airplane.position.y + CHUNK_SIZE,
             airplane.position.z + CHUNK_SIZE * 0.5
         );
-        light.target = airplane; // Make the light point towards the airplane
+        light.target = airplane;
     }
-
 
     if (useFollowCamera && airplane) {
         const targetPosition = airplane.position.clone();
         const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion);
         const desiredCameraPosition = targetPosition.clone().add(offset);
-
         const cameraLerpFactor = 0.07;
         camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
-
         const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
         camera.lookAt(lookAtPosition);
     } else {
-        controls.update(); // orbit controls
+        controls.update();
     }
 
     try {
         renderer.render(scene, camera);
     } catch (error) {
         console.error("Error during renderer.render():", error);
-        // Consider stopping the animation loop if rendering fails catastrophically
-        // cancelAnimationFrame(animate);
     }
 }
 
-// Start animation only if basic setup seems okay
-// For instance, ensure renderer and camera are valid
 if (renderer && scene && camera) {
     console.log("Starting animation loop.");
     animate();
 } else {
     console.error("Renderer, Scene or Camera not initialized. Cannot start animation.");
 }
-
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

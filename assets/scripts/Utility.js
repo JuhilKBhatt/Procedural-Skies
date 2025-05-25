@@ -1,24 +1,39 @@
 // Utility.js
-import * as THREE from 'three';
+import * as THREE from 'three'; // Keep THREE import if any utility directly uses it beyond type hinting
 
-/// Function to generate a random color
-export function getSimilarColour(color, variation = 0.2) {
-    const baseColor = new THREE.Color(color);
-    const hsl = {};
-    baseColor.getHSL(hsl);
-
-    const hueVariation = (Math.random() - 0.5) * variation;
-    const saturationVariation = (Math.random() - 0.5) * variation;
-    const lightnessVariation = (Math.random() - 0.5) * variation;
-
-    let newHue = THREE.MathUtils.clamp(hsl.h + hueVariation, 0, 1);
-    let newSaturation = THREE.MathUtils.clamp(hsl.s + saturationVariation, 0, 1);
-    let newLightness = THREE.MathUtils.clamp(hsl.l + lightnessVariation, 0, 1);
-
-    const newColor = new THREE.Color().setHSL(newHue, newSaturation, newLightness);
-    return newColor.getHex();
+/**
+ * Generates a unique string key for a chunk based on its grid coordinates.
+ * @param {number} chunkX - The X coordinate of the chunk in the grid.
+ * @param {number} chunkZ - The Z coordinate of the chunk in the grid.
+ * @returns {string} A string key representing the chunk's coordinates.
+ */
+export function getChunkKey(chunkX, chunkZ) {
+    return `${chunkX},${chunkZ}`;
 }
 
-export function lerpColor(color1, color2, t) {
-  return color1.clone().lerp(color2, t);
+/**
+ * Disposes of a Three.js material and its associated textures.
+ * @param {THREE.Material | THREE.Material[]} material - The material or array of materials to dispose of.
+ */
+export function cleanMaterial(material) {
+    if (!material) return;
+
+    if (Array.isArray(material)) {
+        material.forEach(mat => cleanSingleMaterial(mat));
+    } else {
+        cleanSingleMaterial(material);
+    }
+}
+
+function cleanSingleMaterial(mat) {
+    if (!mat) return;
+    mat.dispose();
+
+    // Dispose textures
+    for (const key of Object.keys(mat)) {
+        const value = mat[key];
+        if (value && typeof value === 'object' && value.isTexture) {
+            value.dispose();
+        }
+    }
 }
