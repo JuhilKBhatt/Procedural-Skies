@@ -65,31 +65,17 @@ export async function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world,
     terrainChunkMesh.receiveShadow = true;
     scene.add(terrainChunkMesh);
 
-    // Note on Heightfield data structure:
-    // Cannon-es Heightfield expects data[yIndex][xIndex] where its local y is world Z, local x is world X after rotation.
-    // Our heightData[i][j] where i is z-segment index and j is x-segment index fits this.
-    const cannonHeightData = [];
-    for (let idx = 0; idx <= CHUNK_SEGMENTS; idx++) {
-        cannonHeightData[idx] = heightData[CHUNK_SEGMENTS - idx];
-    }
-
-    const heightfieldShape = new CANNON.Heightfield(cannonHeightData, { // Use reversed data
-        elementSize: CHUNK_SIZE / CHUNK_SEGMENTS
-    });
+    // Create a flat plane collider at Y=0
+    const planeShape = new CANNON.Plane();
     const terrainChunkBody = new CANNON.Body({ mass: 0, material: terrainMaterial });
-    terrainChunkBody.addShape(heightfieldShape);
-    // Position the physics body at the corner corresponding to heightData[0][0]
-    terrainChunkBody.position.set(
-        chunkGridX * CHUNK_SIZE - CHUNK_SIZE / 2, // Min X of the chunk
-        0,
-        chunkGridZ * CHUNK_SIZE - CHUNK_SIZE / 2  // Min Z of the chunk (due to PlaneGeometry Y mapping to World Z)
-    );
-    terrainChunkBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    terrainChunkBody.addShape(planeShape);
+    terrainChunkBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate around X by -90 degrees
+    terrainChunkBody.position.set(0, -50, 0);
     world.addBody(terrainChunkBody);
 
     let populatedObjects = [];
     try {
-        // Pass heightData to populateChunk
+        // Pass heightData to populateChunk (still useful for object placement on the visual terrain)
         populatedObjects = await populateChunk(scene, terrainChunkMesh, chunkGridX, chunkGridZ, heightData);
     } catch (error) {
         console.error(`Error populating chunk ${chunkGridX}, ${chunkGridZ}:`, error);
