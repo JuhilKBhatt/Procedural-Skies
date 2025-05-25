@@ -148,26 +148,20 @@ export function generateCombinedTerrain(x, y, z,
         // Using smoothstep for a smoother transition
         mountainInfluence = smoothstep(mountain_lower_bound, mountain_upper_bound, terrainType);
         // Alternatively, for a linear transition:
-        // const t = (terrainType - mountain_lower_bound) / mountain_blend_range;
-        // mountainInfluence = Math.max(0, Math.min(1, t));
+        const t = (terrainType - mountain_lower_bound) / mountain_blend_range;
+        mountainInfluence = Math.max(0, Math.min(1, t));
     }
     terrainHeight = lerp(mountainInfluence, plainsNoiseVal, mountainNoiseVal);
 
     const riverMask = generateRiverMaskNoise(x, y, z);
-    // Smoothly apply river depth
     const river_lower_bound = river_threshold - river_blend_range / 2;
-    const river_upper_bound = river_threshold + river_blend_range / 2;
 
     let riverFactor;
     if (river_blend_range <= 0) {
         riverFactor = (riverMask < river_threshold) ? 1.0 : 0.0;
     } else {
-        // riverFactor will be 1 deep inside the river criteria, 0 outside, smooth transition
-        // We want riverFactor to be 1 when riverMask is low, and 0 when riverMask is high.
-        // So, we invert the smoothstep logic or use 1.0 - smoothstep(...)
         const t_river = (riverMask - river_lower_bound) / river_blend_range;
         riverFactor = 1.0 - Math.max(0, Math.min(1, t_river)); // Linear, inverted
-        // For smoothstep: riverFactor = 1.0 - smoothstep(river_lower_bound, river_upper_bound, riverMask);
     }
 
     if (riverFactor > 0) {

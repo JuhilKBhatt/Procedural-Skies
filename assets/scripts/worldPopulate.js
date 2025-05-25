@@ -13,10 +13,10 @@ const CLOUD_MODELS = [
 ];
 // const ALL_TERRAIN_MODELS = [...TREE_MODELS, ...ROCK_MODELS, ...SEAWEED_MODELS]; // Defined below
 
-const CLUSTERS_PER_CHUNK = 1;
+const CLUSTERS_PER_CHUNK = 0;
 const OBJECTS_PER_CLUSTER = 5;
 const CLUSTER_RADIUS_MAX = 10;
-const CLOUDS_PER_CHUNK = 2;
+const CLOUDS_PER_CHUNK = 0;
 
 // Re-declare ALL_TERRAIN_MODELS here if they were not fully listed above
 const ALL_TERRAIN_MODELS_PATHS = [
