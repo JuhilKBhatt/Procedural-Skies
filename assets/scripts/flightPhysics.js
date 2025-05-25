@@ -6,15 +6,15 @@ export class FlightPhysics {
         this.physicsBody = physicsBody;
 
         // Control inputs (will be set via setControls method)
-        this.throttle = 0.5; // Initial throttle (0 to 1)
+        this.throttle = 0.01; // Initial throttle (0 to 1)
         this.pitchControl = 0; // Elevator: positive for pitch up
         this.yawControl = 0;   // Rudder: positive for yaw right
         this.rollControl = 0;  // Ailerons: positive for roll right
 
         // Airplane characteristics (these are simplified and need tuning)
         this.maxThrust = 60000;
-        this.liftCoefficient = 0.0000000000008;
-        this.dragCoefficient = 0.0000000000005;
+        this.liftCoefficient = 0.0000000000001;
+        this.dragCoefficient = 0.0000000000001;
         
         this.pitchEffectiveness = 20000;
         this.yawEffectiveness = 18000;
@@ -87,6 +87,6 @@ export class FlightPhysics {
         body.applyTorque(worldRollTorqueVec);
 
         //Log the forces and torques for debugging
-        console.log(`Pitch Torque: ${worldPitchTorqueVec}, Yaw Torque: ${worldYawTorqueVec}, Roll Torque: ${worldRollTorqueVec}`);
+        //console.log(`Pitch Torque: ${worldPitchTorqueVec}, Yaw Torque: ${worldYawTorqueVec}, Roll Torque: ${worldRollTorqueVec}`);
     }
 }
