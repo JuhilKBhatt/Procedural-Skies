@@ -25,6 +25,7 @@ function loadFBXModel(modelPath, location, scene, scale = 0.0005, onLoaded) {
         (xhr) => {
             if (xhr.lengthComputable) {
                 const percentComplete = xhr.loaded / xhr.total * 100;
+                console.log(`Loading model: ${modelPath} , ${Math.round(percentComplete)}% complete`);
             }
         },
         (error) => {}

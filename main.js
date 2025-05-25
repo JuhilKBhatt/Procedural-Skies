@@ -16,7 +16,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 // Cannon.js world
 const world = new CANNON.World();
-world.gravity.set(0, -9.82 * 2, 0); // Slightly increased gravity effect for gameplay if desired, or use 9.82 for real scale. Multiplier was 10, which is very high.
+world.gravity.set(0, 0, 0); // Slightly increased gravity effect for gameplay if desired, or use 9.82 for real scale. Multiplier was 10, which is very high.
 world.broadphase = new CANNON.SAPBroadphase(world); // SAPBroadphase is generally better than NaiveBroadphase
 world.solver.iterations = 10; // More iterations for better stability
 
