@@ -9,14 +9,12 @@ export class FlightPhysics {
         this.pitchControl = 0;  // -1 (down), 0 (neutral), 1 (up)
         this.rollControl = 0;   // -1 (left), 0 (neutral), 1 (right)
 
-        // --- Constants to be tuned ---
         this.maxThrust = 3000;         // Max engine thrust force (e.g., in Newtons)
         this.liftCoefficient = 0.08;   // Simplified lift coefficient
         this.dragCoefficient = 0.005;  // Simplified drag coefficient
         this.rudderEffectiveness = 300; // Torque effectiveness for yaw
         this.elevatorEffectiveness = 300;// Torque effectiveness for pitch
         this.aileronEffectiveness = 400; // Torque effectiveness for roll
-        // --- End Constants ---
 
         // Helper vectors (to avoid allocations in loop)
         this.worldVelocity = new CANNON.Vec3();
