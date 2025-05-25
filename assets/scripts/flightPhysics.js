@@ -12,16 +12,16 @@ export class FlightPhysics {
         this.rollControl = 0;  // Ailerons: positive for roll right
 
         // Airplane characteristics (these are simplified and need tuning)
-        this.maxThrust = 60000;
+        this.maxThrust = 25000;
         this.liftCoefficient = 0.0000000000001;
         this.dragCoefficient = 0.0000000000001;
         
-        this.pitchEffectiveness = 20000;
-        this.yawEffectiveness = 18000;
+        this.pitchEffectiveness = 200000;
+        this.yawEffectiveness = 200000;
         this.rollEffectiveness = 20000;
 
         this.airDensity = 9;
-        this.speedForMaxControlEffectiveness = 60; // m/s
+        this.speedForMaxControlEffectiveness = 0.1; // m/s
     }
 
     setControls(controls) {
