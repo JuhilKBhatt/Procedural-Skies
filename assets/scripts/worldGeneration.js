@@ -78,7 +78,7 @@ export async function generateTerrainChunk(chunkGridX, chunkGridZ, scene, world,
     // And this function (generateTerrainChunk) must also be declared async.
     let populatedObjects = [];
     try {
-        // Assuming populateChunk is now async due to awaiting loadFBXModel
+        // This await will now correctly wait for populateChunk to finish all its async model loading
         populatedObjects = await populateChunk(scene, terrainChunkMesh, chunkGridX, chunkGridZ);
     } catch (error) {
         console.error(`Error populating chunk ${chunkGridX}, ${chunkGridZ}:`, error);

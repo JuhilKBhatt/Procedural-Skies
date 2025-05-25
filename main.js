@@ -5,7 +5,7 @@ import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scrip
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
-import { getChunkKey, cleanMaterial } from './assets/scripts/Utility.js'; // Import from Utility.js
+import { getChunkKey, cleanMaterial } from './assets/scripts/Utility.js';
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
