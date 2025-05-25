@@ -8,7 +8,7 @@ function lerp(t, a, b) {
 class PerlinNoise {
     constructor(seed = 0) { // Default seed to 0 for consistent terrain, or allow it to be set
         this.p = new Uint8Array(512); // Increased permutation table size for larger integer coordinates before repeating pattern
-        this.seed = seed;
+        this.seed = seed === 0 ? Date.now() : seed;
         this._initializePermutationTable();
     }
 
@@ -83,9 +83,8 @@ class PerlinNoise {
     }
 }
 
-// Instantiate Perlin Noise. Using a fixed seed ensures the same terrain every time.
-// Change the seed to get a different world.
-const perlin = new PerlinNoise(12345); // Example fixed seed
+// Instantiate Perlin Noise
+const perlin = new PerlinNoise(Date.now() % 1000);
 
 function multiOctavePerlinNoise3D(x, y, z, octaves = 6, persistence = 0.5, lacunarity = 2.0) {
     let total = 0;
