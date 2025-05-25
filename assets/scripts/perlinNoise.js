@@ -109,12 +109,12 @@ function multiOctavePerlinNoise3D(x, y, z, octaves = 6, persistence = 0.5, lacun
 
 // Generate noise for mountainous terrain
 function generateMountainNoise(x, y, z) {
-    return multiOctavePerlinNoise3D(x, y, z, 8, 0.6, 2.0);
+    return multiOctavePerlinNoise3D(x, y, z, 4, 0.6, 2.0);
 }
 
 // Generate noise for plains terrain
 function generatePlainsNoise(x, y, z) {
-    return multiOctavePerlinNoise3D(x, y, z, 4, 0.3, 2.0);
+    return multiOctavePerlinNoise3D(x, y, z, 4, 0.5, 2.0);
 }
 
 // Generate noise to act as a terrain type map (smooth transitions between plains and mountains)

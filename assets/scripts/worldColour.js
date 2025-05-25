@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // Define colors for different elevation levels
 export const colorWaterDeep = new THREE.Color(0x003366);   // Dark Blue
 export const colorWaterShallow = new THREE.Color(0x007bff); // Light Blue
-export const colorSand = new THREE.Color(0xf4a460);      // Sandy Brown
+export const colorSand = new THREE.Color(0x349117);      // Green
 export const colorGrass = new THREE.Color(0x228b22);      // Forest Green
 export const colorDirt = new THREE.Color(0x8b4513);        // Saddle Brown / Dirt
 export const colorRock = new THREE.Color(0x808080);        // Gray
