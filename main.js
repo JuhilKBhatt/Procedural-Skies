@@ -6,6 +6,7 @@ import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
 import { getChunkKey, cleanMaterial } from './assets/scripts/Utility.js';
+import { CameraHandler } from './assets/scripts/camera.js';
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -41,13 +42,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 10;
-controls.maxDistance = 1000;
 
 const light = new THREE.DirectionalLight(0xffffff, 5);
 light.position.set(CHUNK_SIZE * 0.75, CHUNK_SIZE * 1.5, CHUNK_SIZE);
@@ -223,20 +217,6 @@ if (airplane) {
     controls.update();
 }
 // --- End Airplane and ControlHandler Initialization ---
-
-const cameraOffset = new THREE.Vector3(0, 10, -30);
-const lookAtOffset = new THREE.Vector3(0, 5, 0);
-
-let useFollowCamera = true;
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'c') {
-        useFollowCamera = !useFollowCamera;
-        controls.enabled = !useFollowCamera;
-        if (!useFollowCamera && airplane) {
-            controls.target.copy(airplane.position);
-        }
-    }
-});
 
 function animate() {
     requestAnimationFrame(animate);
