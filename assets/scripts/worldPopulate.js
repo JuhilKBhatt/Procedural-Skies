@@ -4,26 +4,21 @@ import { loadFBXModel } from './LoadFBXModel.js';
 // Import CHUNK_SEGMENTS along with CHUNK_SIZE and TERRAIN_MAX_HEIGHT
 import { CHUNK_SIZE, TERRAIN_MAX_HEIGHT, CHUNK_SEGMENTS } from './worldGeneration.js';
 
-const TREE_MODELS = [ /* ... model paths ... */ ];
-const ROCK_MODELS = [ /* ... model paths ... */ ];
-const SEAWEED_MODELS = [ /* ... model paths ... */ ];
 const CLOUD_MODELS = [
     'assets/models/cloud/Cloud_1.fbx', 'assets/models/cloud/Cloud_2.fbx', 'assets/models/cloud/Cloud_3.fbx',
     'assets/models/cloud/Cloud_4.fbx'
 ];
-// const ALL_TERRAIN_MODELS = [...TREE_MODELS, ...ROCK_MODELS, ...SEAWEED_MODELS]; // Defined below
 
-const CLUSTERS_PER_CHUNK = 0;
+const CLUSTERS_PER_CHUNK = 1;
 const OBJECTS_PER_CLUSTER = 5;
 const CLUSTER_RADIUS_MAX = 10;
-const CLOUDS_PER_CHUNK = 0;
+const CLOUDS_PER_CHUNK = 2;
 
 // Re-declare ALL_TERRAIN_MODELS here if they were not fully listed above
 const ALL_TERRAIN_MODELS_PATHS = [
     'assets/models/tree/TreePine.fbx', 'assets/models/tree/TreeRound.fbx',
     'assets/models/rock/Rock1.fbx', 'assets/models/rock/Rock2.fbx', 'assets/models/rock/Rock3.fbx',
-    'assets/models/rock/Rock4.fbx', 'assets/models/rock/Rock5.fbx', 'assets/models/rock/Rock6.fbx',
-    'assets/models/river/SeaWeed1.fbx', 'assets/models/river/SeaWeed2.fbx'
+    'assets/models/rock/Rock4.fbx', 'assets/models/rock/Rock5.fbx', 'assets/models/rock/Rock6.fbx'
 ];
 
 /**
@@ -95,7 +90,6 @@ function getTerrainHeight(worldX, worldZ, chunkGridX, chunkGridZ, heightData, ch
 
     return interpolatedHeight;
 }
-
 
 /**
  * Populates a given terrain chunk with objects. ASYNCHRONOUS.
