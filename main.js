@@ -13,8 +13,22 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, CHUNK_SIZE * 2, CHUNK_SIZE * 8);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, CHUNK_SIZE * 20);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Initialize CameraHandler
+const cameraHandler = new CameraHandler(renderer.domElement, {
+    fov: 75,
+    near: 0.1,
+    far: CHUNK_SIZE * 20, // Use CHUNK_SIZE for dynamic far plane
+    initialChunkSize: CHUNK_SIZE, // Pass CHUNK_SIZE for other internal settings
+    cameraOffset: new THREE.Vector3(0, 10, -30), // Your original offset
+    lookAtOffset: new THREE.Vector3(0, 5, 0)    // Your original lookAt offset
+});
+const camera = cameraHandler.getCamera(); // Get the camera instance for the scene and renderer
 
 const world = new CANNON.World();
 world.gravity.set(0, -4, 0); // Adjusted gravity
@@ -183,6 +197,7 @@ if (airplane) {
         airplane.physicsBody.wakeUp();
         airplane.position.copy(airplane.physicsBody.position);
         airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        cameraHandler.setTarget(airplane); // Set the camera target to the airplane
     } else {
         console.error("Airplane created, but airplane.physicsBody is missing!");
         airplane.position.set(0, CHUNK_SIZE * 0.5, 0);
@@ -201,20 +216,19 @@ if (airplane) {
         console.error("Error during new ControlHandler():", error);
     }
 
-    if (airplane.physicsBody) { // This first call to updateTerrainChunks is fine.
+    if (airplane.physicsBody) {
         console.log("Attempting initial chunk load (inside airplane check)...");
         updateTerrainChunks().catch(error => console.error("Error during initial chunk load (inside airplane check):", error));
     } else {
         console.warn("Skipping initial chunk load because airplane.physicsBody is missing.");
-        camera.position.set(0, 50, 100);
-        controls.target.set(0,0,0);
+        // Fallback camera position if airplane physics is missing but airplane object exists
+        cameraHandler.setFallbackMode(new THREE.Vector3(0, CHUNK_SIZE * 0.25, 50));
     }
 
 } else {
     console.error("Airplane object was NOT created. Cannot proceed with airplane-dependent setup.");
-    camera.position.set(0, 50, 100);
-    controls.target.set(0,0,0);
-    controls.update();
+    // Fallback camera position if airplane itself is not created
+    cameraHandler.setFallbackMode(new THREE.Vector3(0, 50, 100));
 }
 // --- End Airplane and ControlHandler Initialization ---
 
@@ -255,17 +269,7 @@ function animate() {
         light.target = airplane;
     }
 
-    if (useFollowCamera && airplane) {
-        const targetPosition = airplane.position.clone();
-        const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion);
-        const desiredCameraPosition = targetPosition.clone().add(offset);
-        const cameraLerpFactor = 0.07;
-        camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
-        const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
-        camera.lookAt(lookAtPosition);
-    } else {
-        controls.update();
-    }
+    cameraHandler.update(deltaTime);
 
     try {
         renderer.render(scene, camera);
