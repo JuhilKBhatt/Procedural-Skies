@@ -82,7 +82,7 @@ let audioHandler;
 let firstUserInteraction = false;
 
 try {
-    audioHandler = new AudioHandler('./assets/audio/engine_loop.mp3');
+    audioHandler = new AudioHandler('./assets/audio/engineLoop.mp3');
 } catch (error) {
     console.error("Error creating AudioHandler instance:", error);
 }
