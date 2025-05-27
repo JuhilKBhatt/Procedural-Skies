@@ -9,7 +9,7 @@ export class ControlHandler {
         if (this.airplane && this.airplane.flightPhysics) {
             this.currentThrottle = this.airplane.flightPhysics.throttle; // Sync with physics if already set
         }
-        this.throttleStep = 0.05; // Smoother throttle adjustment
+        this.throttleStep = 0.01; // Smoother throttle adjustment
 
         this.bindEvents();
         this.updateAirplane(); // Initialize controls (especially neutrals)
