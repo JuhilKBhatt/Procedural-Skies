@@ -1,6 +1,5 @@
 // main.js
 import * as THREE from 'three';
-import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
@@ -8,6 +7,9 @@ import * as CANNON from 'cannon-es';
 import { getChunkKey, cleanMaterial, updateTerrainChunks } from './assets/scripts/Utility.js';
 import { CameraHandler } from './assets/scripts/camera.js';
 import { AudioHandler } from './assets/scripts/audioHandler.js';
+import { GUI } from 'GUI';
+
+const gui = new GUI();
 
 const throttleValueElement = document.getElementById('throttle-value');
 const throttleBarElement = document.getElementById('throttle-bar');
@@ -212,33 +214,17 @@ async function animate() { // Make animate async if it directly awaits updateTer
 
             // Attitude Indicator Update
             if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
-                // Assuming airplane.flightPhysics has pitch and roll
-                // Pitch and Roll are typically in radians. Convert to degrees for CSS.
-                // The airplane's quaternion can also be used to derive pitch and roll.
-
-                // Get Euler angles from the airplane's quaternion
-                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ'); // Common order for airplanes
+                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
 
                 let pitch = euler.x; // Radians
                 let roll = euler.z;  // Radians
 
-                // --- Simple Pitch and Roll from flightPhysics (if you update them there directly) ---
-                // let pitch = airplane.flightPhysics.pitch || 0; // In radians
-                // let roll = airplane.flightPhysics.roll || 0;   // In radians
-
-
-                // Adjust pitch for the visual:
-                // Positive pitch (nose up) should move the ground down.
-                // The range of motion for pitch is limited by the AI display.
-                // Let's say the AI can show +/- 90 degrees of pitch.
-                // The `ai-ground` height is 50% of the AI circle.
-                // So, a 90-degree pitch up would mean the ground is at the bottom (translateY 50%).
-                // A -90-degree pitch down would mean the ground is at the top (translateY -50%).
+                // Adjust pitch for the visual
                 const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
-                const pitchTranslationPercentage = (pitchDegrees / 90) * 50; // Max 50% translation
+                const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
                 const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
 
-                // Roll: Rotate the ground element. Negative roll in THREE.js (left wing down) means positive CSS rotation.
+                // Roll
                 const rollDegrees = THREE.MathUtils.radToDeg(roll);
 
                 // Apply transformations
