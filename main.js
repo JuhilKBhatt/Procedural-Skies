@@ -7,6 +7,7 @@ import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
 import { getChunkKey, cleanMaterial, updateTerrainChunks } from './assets/scripts/Utility.js';
 import { CameraHandler } from './assets/scripts/camera.js';
+import { AudioHandler } from './assets/scripts/audioHandler.js';
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -77,6 +78,14 @@ let lastPlayerChunkZ = null;
 
 let airplane;
 let controlHandler;
+let audioHandler;
+let firstUserInteraction = false;
+
+try {
+    audioHandler = new AudioHandler('./assets/audio/engine_loop.mp3');
+} catch (error) {
+    console.error("Error creating AudioHandler instance:", error);
+}
 
 try {
     airplane = createAirplane(scene, world);
@@ -140,6 +149,25 @@ if (airplane) {
     cameraHandler.setFallbackMode(new THREE.Vector3(0, 50, 100));
 }
 
+// --- Handle First User Interaction for Audio ---
+function handleFirstInteractionForAudio() {
+    if (!firstUserInteraction && audioHandler) {
+        console.log("First user interaction detected, attempting to resume audio context.");
+        audioHandler.resumeContext(); // Attempt to resume the audio context
+        firstUserInteraction = true;
+        // Remove listeners after the first interaction
+        window.removeEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
+        window.removeEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
+        window.removeEventListener('touchstart', handleFirstInteractionForAudio, { capture: true });
+    }
+}
+
+// Listen for various user interactions to resume audio context
+// Using capture: true to catch the event early
+window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
+window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
+window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
+
 async function animate() { // Make animate async if it directly awaits updateTerrainChunks
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
@@ -164,6 +192,15 @@ async function animate() { // Make animate async if it directly awaits updateTer
                 airplane.update(deltaTime);
             } catch (error) {
                 console.error("Error in airplane.update():", error);
+            }
+        }
+
+        if (audioHandler && airplane.flightPhysics && typeof audioHandler.updateThrottleSound === 'function') {
+            try {
+                // Pass the actual throttle value from your airplane's flight physics
+                audioHandler.updateThrottleSound(airplane.flightPhysics.throttle);
+            } catch (error) {
+                console.error("Error in audioHandler.updateThrottleSound():", error);
             }
         }
 
