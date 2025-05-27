@@ -5,7 +5,7 @@ export class ControlHandler {
         this.keys = {};
 
         // Store current throttle state locally in ControlHandler
-        this.currentThrottle = 0.1; // Initial throttle is 10% for takeoff
+        this.currentThrottle = 0.0; // Initial throttle is 10% for takeoff
         if (this.airplane && this.airplane.flightPhysics) {
             this.currentThrottle = this.airplane.flightPhysics.throttle; // Sync with physics if already set
         }

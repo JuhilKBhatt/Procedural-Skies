@@ -6,7 +6,7 @@ export class FlightPhysics {
         this.physicsBody = physicsBody;
 
         // Control inputs (will be set via setControls method)
-        this.throttle = 0.01; // Initial throttle (0 to 1)
+        this.throttle = 0.5; // Initial throttle (0 to 1)
         this.pitchControl = 0; // Elevator: positive for pitch up
         this.yawControl = 0;   // Rudder: positive for yaw right
         this.rollControl = 0;  // Ailerons: positive for roll right
