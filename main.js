@@ -212,28 +212,12 @@ async function animate() { // Make animate async if it directly awaits updateTer
 
             // Attitude Indicator Update
             if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
-                // Assuming airplane.flightPhysics has pitch and roll
-                // Pitch and Roll are typically in radians. Convert to degrees for CSS.
-                // The airplane's quaternion can also be used to derive pitch and roll.
-
                 // Get Euler angles from the airplane's quaternion
                 const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ'); // Common order for airplanes
 
                 let pitch = euler.x; // Radians
                 let roll = euler.z;  // Radians
 
-                // --- Simple Pitch and Roll from flightPhysics (if you update them there directly) ---
-                // let pitch = airplane.flightPhysics.pitch || 0; // In radians
-                // let roll = airplane.flightPhysics.roll || 0;   // In radians
-
-
-                // Adjust pitch for the visual:
-                // Positive pitch (nose up) should move the ground down.
-                // The range of motion for pitch is limited by the AI display.
-                // Let's say the AI can show +/- 90 degrees of pitch.
-                // The `ai-ground` height is 50% of the AI circle.
-                // So, a 90-degree pitch up would mean the ground is at the bottom (translateY 50%).
-                // A -90-degree pitch down would mean the ground is at the top (translateY -50%).
                 const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
                 const pitchTranslationPercentage = (pitchDegrees / 90) * 50; // Max 50% translation
                 const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
@@ -244,7 +228,6 @@ async function animate() { // Make animate async if it directly awaits updateTer
                 // Apply transformations
                 aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
                 aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
-
             }
         }
 
@@ -277,7 +260,6 @@ async function animate() { // Make animate async if it directly awaits updateTer
         } catch (error) {
             console.error("Error during chunk update in animate:", error)
         }
-
 
         light.position.set(
             airplane.position.x + CHUNK_SIZE * 0.5,
