@@ -208,10 +208,6 @@ if (airplane) {
 
 try {
         controlHandler = new ControlHandler(airplane);
-        if (airplane.flightPhysics) { // Initialize GUI throttle from physics if available
-            airplaneControlSettings.throttle = airplane.flightPhysics.throttle;
-            if(controlHandler) controlHandler.currentThrottle = airplane.flightPhysics.throttle;
-        }
     } catch (error) {
         console.error("Error during new ControlHandler():", error);
     }
@@ -258,10 +254,11 @@ window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: tr
 window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
 window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
 
+const fixedTimeStep = 1 / 60;
+let accumulator = 0;
 async function animate() { // Make animate async if it directly awaits updateTerrainChunks
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
-    const fixedTimeStep = 1 / 60;
 
     if (controlHandler) {
         try {
@@ -271,11 +268,30 @@ async function animate() { // Make animate async if it directly awaits updateTer
         }
     }
 
-    world.step(fixedTimeStep, deltaTime, 3);
+    accumulator += deltaTime;
+    while (accumulator >= fixedTimeStep) {
+        // Store previous state for interpolation (optional, depending on technique)
+        // Some interpolation techniques might need this if not directly using the render object's last state.
+
+        // Update internal airplane logic (e.g., flight model that affects physics controls)
+        if (airplane && typeof airplane.update === 'function') {
+            try {
+                airplane.update(fixedTimeStep); // Pass fixedTimeStep to physics-related updates
+            } catch (error) {
+                console.error("Error in airplane.update():", error);
+            }
+        }
+
+        world.step(fixedTimeStep); // Step the physics world by a fixed amount
+
+        accumulator -= fixedTimeStep;
+    }
+
+    const alpha = accumulator / fixedTimeStep; 
 
     if (airplane && airplane.physicsBody) {
-        airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        airplane.position.lerp(airplane.physicsBody.position, alpha); // Simple lerp for position
+        airplane.quaternion.slerp(airplane.physicsBody.quaternion, alpha); // Slerp for quaternion
 
         if (typeof airplane.update === 'function') {
             try {
@@ -285,36 +301,7 @@ async function animate() { // Make animate async if it directly awaits updateTer
             }
         }
 
-        // --- Update UI Elements ---
-        if (airplane.flightPhysics) {
-            // Throttle Update
-            if (throttleValueElement && throttleBarElement) {
-                const throttlePercentage = (airplane.flightPhysics.throttle || 0) * 100;
-                throttleValueElement.textContent = throttlePercentage.toFixed(0);
-                throttleBarElement.style.width = `${throttlePercentage}%`;
-            }
 
-            // Attitude Indicator Update
-            if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
-                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
-
-                let pitch = euler.x; // Radians
-                let roll = euler.z;  // Radians
-
-                // Adjust pitch for the visual
-                const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
-                const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
-                const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
-
-                // Roll
-                const rollDegrees = THREE.MathUtils.radToDeg(roll);
-
-                // Apply transformations
-                aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
-                aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
-
-            }
-        }
 
         if (audioHandler && airplane.flightPhysics && typeof audioHandler.updateThrottleSound === 'function') {
             try {
@@ -347,6 +334,37 @@ async function animate() { // Make animate async if it directly awaits updateTer
             airplane.position.z + CHUNK_SIZE * 0.5
         );
         light.target = airplane;
+    }
+
+    // --- Update UI Elements ---
+    if (airplane.flightPhysics) {
+        // Throttle Update
+        if (throttleValueElement && throttleBarElement) {
+            const throttlePercentage = (airplane.flightPhysics.throttle || 0) * 100;
+            throttleValueElement.textContent = throttlePercentage.toFixed(0);
+            throttleBarElement.style.width = `${throttlePercentage}%`;
+        }
+
+        // Attitude Indicator Update
+        if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
+            const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
+
+            let pitch = euler.x; // Radians
+            let roll = euler.z;  // Radians
+
+            // Adjust pitch for the visual
+            const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
+            const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
+            const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
+
+            // Roll
+            const rollDegrees = THREE.MathUtils.radToDeg(roll);
+
+            // Apply transformations
+            aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
+            aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
+
+        }
     }
 
     cameraHandler.update(deltaTime);
