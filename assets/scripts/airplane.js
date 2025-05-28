@@ -9,13 +9,6 @@ export function createAirplane(scene, world) {
     const modelPath = 'assets/models/plane/Airplane.fbx';
     const airplane = new THREE.Group();
     loadFBXModel(modelPath, new THREE.Vector3(0, 0, 0), airplane, 0.01); // Ensure this correctly loads and scales
-    airplane.position.set(0, 100, -180);
-
-    airplane.rotation.y = -Math.PI / 2; // To make local +X point to world +Z
-
-    // For this example, let's use the original orientation and assume FlightPhysics's local Z is forward.
-    airplane.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));
-    airplane.rotateY(-Math.PI / 2); // This makes the airplane face positive Z in world space if its model's "nose" was initially pointing towards negative Z local.
 
     // Create a Cannon.js body for the airplane
     const airplaneBody = new CANNON.Body({
