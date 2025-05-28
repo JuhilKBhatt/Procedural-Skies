@@ -1,27 +1,63 @@
 // main.js
 import * as THREE from 'three';
-import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
-import { generateTerrain } from './assets/scripts/worldGeneration.js'; // Assuming this file exists
+import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
 import * as CANNON from 'cannon-es';
+import { getChunkKey, cleanMaterial, updateTerrainChunks } from './assets/scripts/Utility.js';
+import { CameraHandler } from './assets/scripts/camera.js';
+import { AudioHandler } from './assets/scripts/audioHandler.js';
+import { GUI } from 'GUI';
+
+// --- GUI Settings Objects ---
+const worldGenSettings = {
+    TERRAIN_MAX_HEIGHT: 80,     // Default from original worldGeneration.js
+    TERRAIN_MIN_HEIGHT: -40,    // Default from original worldGeneration.js
+    NOISE_INPUT_SCALE: 0.007,   // Default from original worldGeneration.js
+    regenerateWorld: async () => { /* Implementation below */ }
+};
+
+const worldPopSettings = {
+    CLUSTERS_PER_CHUNK: 1,      // Default from original worldPopulate.js
+    OBJECTS_PER_CLUSTER: 5,     // Default from original worldPopulate.js
+    CLOUDS_PER_CHUNK: 2,        // Default from original worldPopulate.js
+    repopulateChunks: async () => { /* Implementation below */ }
+};
+
+const gui = new GUI();
+
+const throttleValueElement = document.getElementById('throttle-value');
+const throttleBarElement = document.getElementById('throttle-bar');
+const attitudeIndicatorElement = document.getElementById('attitude-indicator');
+const aiGroundElement = document.getElementById('ai-ground');
+const aiRollIndicatorElement = document.getElementById('ai-roll-indicator'); // Get the roll indicator
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 200, 800);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000); // Adjusted near plane, common FOV
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-// Cannon.js world
+// Initialize CameraHandler
+const cameraHandler = new CameraHandler(renderer.domElement, {
+    fov: 75,
+    near: 0.1,
+    far: CHUNK_SIZE * 20, // Use CHUNK_SIZE for dynamic far plane
+    initialChunkSize: CHUNK_SIZE, // Pass CHUNK_SIZE for other internal settings
+    cameraOffset: new THREE.Vector3(0, 10, -30), // Your original offset
+    lookAtOffset: new THREE.Vector3(0, 5, 0)    // Your original lookAt offset
+});
+const camera = cameraHandler.getCamera(); // Get the camera instance for the scene and renderer
+
 const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Slightly increased gravity effect for gameplay if desired, or use 9.82 for real scale. Multiplier was 10, which is very high.
-world.broadphase = new CANNON.SAPBroadphase(world); // SAPBroadphase is generally better than NaiveBroadphase
-world.solver.iterations = 10; // More iterations for better stability
+world.gravity.set(0, -4, 0); // Adjusted gravity
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 10;
 
-// Create contact material for airplane and terrain
-// Give materials names for easier debugging if needed
 const airplaneMaterial = new CANNON.Material("airplaneMaterial");
 const terrainMaterial = new CANNON.Material("terrainMaterial");
 
@@ -29,109 +65,301 @@ const airplaneTerrainContactMaterial = new CANNON.ContactMaterial(
     airplaneMaterial,
     terrainMaterial,
     {
-        friction: 0,      // Friction between airplane and terrain
-        restitution: 0.1,   // Bounciness (low for crashes)
+        friction: 0.5,
+        restitution: 0.1,
         contactEquationStiffness: 1e7,
-        contactEquationRelaxation: 4, // Adjusted relaxation
+        contactEquationRelaxation: 4,
         frictionEquationStiffness: 1e7,
-        frictionEquationRelaxation: 4, // Adjusted relaxation
+        frictionEquationRelaxation: 4,
     }
 );
 world.addContactMaterial(airplaneTerrainContactMaterial);
 
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 10;
-controls.maxDistance = 500; // Max distance for orbit controls
-
 const light = new THREE.DirectionalLight(0xffffff, 5);
-light.position.set(150, 300, 200);
+light.position.set(CHUNK_SIZE * 0.75, CHUNK_SIZE * 1.5, CHUNK_SIZE);
 light.castShadow = true;
 scene.add(light);
 
 light.shadow.mapSize.width = 4096;
 light.shadow.mapSize.height = 4096;
 light.shadow.camera.near = 50;
-light.shadow.camera.far = 1000;
-const shadowCamSize = 350;
+light.shadow.camera.far = CHUNK_SIZE * 4;
+const shadowCamSize = CHUNK_SIZE * 1.5;
 light.shadow.camera.left = -shadowCamSize;
 light.shadow.camera.right = shadowCamSize;
 light.shadow.camera.top = shadowCamSize;
 light.shadow.camera.bottom = -shadowCamSize;
 
-const ambientLight = new THREE.AmbientLight(0x606080, 1.5); // Slightly increased ambient
+const ambientLight = new THREE.AmbientLight(0x606080, 1.5);
 scene.add(ambientLight);
 
-const terrain = generateTerrain(scene, world, terrainMaterial); // Pass terrainMaterial
+const activeChunks = new Map();
+const VIEW_DISTANCE_CHUNKS = 2;
+let lastPlayerChunkX = null;
+let lastPlayerChunkZ = null;
 
-const airplane = createAirplane(scene, world);
-if (airplane && airplane.physicsBody) {
-    airplane.physicsBody.material = airplaneMaterial; // Assign material to airplane physics body
-}
+let airplane;
+let controlHandler;
+let audioHandler;
+let firstUserInteraction = false;
 
-airplane.traverse(node => {
-    if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true; // Airplane parts can receive shadows from other parts
+// --- GUI Setup ---
+const worldGenFolder = gui.addFolder('World Generation');
+worldGenFolder.add(worldGenSettings, 'TERRAIN_MAX_HEIGHT', 30, 300, 1).name('Max Height');
+worldGenFolder.add(worldGenSettings, 'TERRAIN_MIN_HEIGHT', -150, 0, 1).name('Min Height');
+worldGenFolder.add(worldGenSettings, 'NOISE_INPUT_SCALE', 0.0005, 0.03, 0.0001).name('Noise Scale');
+worldGenFolder.add(worldGenSettings, 'regenerateWorld').name('Regenerate World');
+worldGenFolder.open();
+
+const worldPopFolder = gui.addFolder('World Population');
+worldPopFolder.add(worldPopSettings, 'CLUSTERS_PER_CHUNK', 0, 10, 1).name('Terrain Clusters/Chunk');
+worldPopFolder.add(worldPopSettings, 'OBJECTS_PER_CLUSTER', 0, 20, 1).name('Objects/Cluster');
+worldPopFolder.add(worldPopSettings, 'CLOUDS_PER_CHUNK', 0, 10, 1).name('Clouds/Chunk');
+worldPopFolder.add(worldPopSettings, 'repopulateChunks').name('Repopulate Chunks');
+worldPopFolder.open();
+
+// --- World Regeneration and Repopulation Functions ---
+worldGenSettings.regenerateWorld = async () => {
+    console.log("Regenerating world with settings:", worldGenSettings);
+    for (const [key, chunkData] of activeChunks) {
+        scene.remove(chunkData.mesh);
+        if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
+        if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material);
+        if (chunkData.body) world.removeBody(chunkData.body);
+        if (chunkData.populatedObjects) {
+            chunkData.populatedObjects.forEach(obj => {
+                scene.remove(obj);
+                obj.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) cleanMaterial(child.material);
+                    }
+                });
+            });
+        }
+        activeChunks.delete(key);
     }
-});
+    console.log("Cleared all active chunks.");
+    lastPlayerChunkX = null;
+    lastPlayerChunkZ = null;
 
-const controlHandler = new ControlHandler(airplane);
-
-const cameraOffset = new THREE.Vector3(0, 10, -30); // Camera closer and slightly lower behind perspective
-const lookAtOffset = new THREE.Vector3(0, 5, 0);   // Look slightly above airplane's center for better view
-
-let useFollowCamera = true;
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'c') {
-        useFollowCamera = !useFollowCamera;
-        controls.enabled = !useFollowCamera;
-    }
-});
-
-function animate() {
-    requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta();
-    const fixedTimeStep = 1 / 60; // Use a fixed timestep for physics
-
-    // Step the physics world
-    world.step(fixedTimeStep, deltaTime, 3); // Max sub-steps: 3
-
-    if (useFollowCamera) {
-        if (airplane && airplane.physicsBody) {
-            // Sync Three.js airplane visual model with the Cannon.js physics body
-            airplane.position.copy(airplane.physicsBody.position);
-            airplane.quaternion.copy(airplane.physicsBody.quaternion);
-
-            // Call airplane's internal update (which now calls flightPhysics.update)
-            airplane.update(deltaTime); // This handles physics and visual animations
-
-            // Camera follow logic
-            const targetPosition = airplane.position.clone();
-            const offset = cameraOffset.clone().applyQuaternion(airplane.quaternion); // Apply airplane's rotation to offset
-            const desiredCameraPosition = targetPosition.clone().add(offset);
-
-            const cameraLerpFactor = 0.07;
-            camera.position.lerp(desiredCameraPosition, cameraLerpFactor);
-
-            const lookAtPosition = targetPosition.clone().add(lookAtOffset.clone().applyQuaternion(airplane.quaternion));
-            camera.lookAt(lookAtPosition);
+    if (airplane && airplane.physicsBody) {
+        console.log("Forcing terrain chunk update after regeneration...");
+        try {
+            const newChunkCoords = await updateTerrainChunks({
+                airplane, activeChunks,
+                currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+                scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+                generateTerrainChunk,
+                worldGenSettings, // Pass new settings
+                worldPopSettings  // Pass new settings
+            });
+            lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
+            lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
+            console.log("World regeneration complete.");
+        } catch (error) {
+            console.error("Error during forced chunk update for regeneration:", error);
         }
     } else {
-        controls.update(); // only update when not in follow mode
+        console.warn("Airplane not ready, cannot trigger chunk regeneration.");
     }
+};
 
-    renderer.render(scene, camera);
+worldPopSettings.repopulateChunks = async () => {
+    console.log("Repopulating chunks with settings:", worldPopSettings);
+    console.warn("Current 'Repopulate Chunks' triggers a full world regeneration. For optimized repopulation, further decoupling of populateChunk is needed.");
+    await worldGenSettings.regenerateWorld(); // Uses the full regeneration logic
+};
+
+
+try {
+    audioHandler = new AudioHandler('./assets/audio/engineLoop.mp3');
+} catch (error) {
+    console.error("Error creating AudioHandler instance:", error);
 }
 
-animate();
+try {
+    airplane = createAirplane(scene, world);
+} catch (error) {
+    console.error("Error during createAirplane():", error);
+}
+
+if (airplane) {
+    console.log("Airplane object created:", airplane);
+    if (airplane.physicsBody) {
+        console.log("Airplane physicsBody exists.");
+        airplane.physicsBody.material = airplaneMaterial;
+        airplane.physicsBody.position.set(0, CHUNK_SIZE * 0.5, 0);
+        airplane.physicsBody.wakeUp();
+        airplane.position.copy(airplane.physicsBody.position);
+        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        cameraHandler.setTarget(airplane);
+    } else {
+        console.error("Airplane created, but airplane.physicsBody is missing!");
+        airplane.position.set(0, CHUNK_SIZE * 0.5, 0);
+    }
+
+    airplane.traverse(node => {
+        if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+        }
+    });
+
+try {
+        controlHandler = new ControlHandler(airplane);
+    } catch (error) {
+        console.error("Error during new ControlHandler():", error);
+    }
+
+    if (airplane.physicsBody) {
+        console.log("Attempting initial chunk load...");
+        updateTerrainChunks({
+            airplane, activeChunks,
+            currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+            scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+            generateTerrainChunk,
+            worldGenSettings, // Pass initial settings
+            worldPopSettings  // Pass initial settings
+        }).then(newChunkCoords => {
+            lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
+            lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
+        }).catch(error => console.error("Error during initial chunk load:", error));
+    } else {
+        console.warn("Skipping initial chunk load because airplane.physicsBody is missing.");
+        cameraHandler.setFallbackMode(new THREE.Vector3(0, CHUNK_SIZE * 0.25, 50));
+    }
+
+} else {
+    console.error("Airplane object was NOT created. Cannot proceed with airplane-dependent setup.");
+    cameraHandler.setFallbackMode(new THREE.Vector3(0, 50, 100));
+}
+
+// --- Handle First User Interaction for Audio ---
+function handleFirstInteractionForAudio() {
+    if (!firstUserInteraction && audioHandler) {
+        console.log("First user interaction detected, attempting to resume audio context.");
+        audioHandler.resumeContext(); // Attempt to resume the audio context
+        firstUserInteraction = true;
+        // Remove listeners after the first interaction
+        window.removeEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
+        window.removeEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
+        window.removeEventListener('touchstart', handleFirstInteractionForAudio, { capture: true });
+    }
+}
+
+// Listen for various user interactions to resume audio context
+// Using capture: true to catch the event early
+window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
+window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
+window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
+
+async function animate() { // Make animate async if it directly awaits updateTerrainChunks
+    requestAnimationFrame(animate);
+    const deltaTime = clock.getDelta();
+    const fixedTimeStep = 1 / 60;
+
+    if (controlHandler) {
+        try {
+            controlHandler.updateAirplane();
+        } catch (error) {
+            console.error("Error in controlHandler.update():", error);
+        }
+    }
+
+    world.step(fixedTimeStep, deltaTime, 3);
+
+    if (airplane && airplane.physicsBody) {
+        airplane.position.copy(airplane.physicsBody.position);
+        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+
+        if (typeof airplane.update === 'function') {
+            try {
+                airplane.update(deltaTime);
+            } catch (error) {
+                console.error("Error in airplane.update():", error);
+            }
+        }
+
+        // --- Update UI Elements ---
+        if (airplane.flightPhysics) {
+            // Throttle Update
+            if (throttleValueElement && throttleBarElement) {
+                const throttlePercentage = (airplane.flightPhysics.throttle || 0) * 100;
+                throttleValueElement.textContent = throttlePercentage.toFixed(0);
+                throttleBarElement.style.width = `${throttlePercentage}%`;
+            }
+
+            // Attitude Indicator Update
+            if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
+                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
+
+                let pitch = euler.x; // Radians
+                let roll = euler.z;  // Radians
+
+                // Adjust pitch for the visual
+                const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
+                const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
+                const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
+
+                // Roll
+                const rollDegrees = THREE.MathUtils.radToDeg(roll);
+
+                // Apply transformations
+                aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
+                aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
+
+            }
+        }
+
+        if (audioHandler && airplane.flightPhysics && typeof audioHandler.updateThrottleSound === 'function') {
+            try {
+                // Pass the actual throttle value from your airplane's flight physics
+                audioHandler.updateThrottleSound(airplane.flightPhysics.throttle);
+            } catch (error) {
+                console.error("Error in audioHandler.updateThrottleSound():", error);
+            }
+        }
+
+        // Call the imported function and update lastPlayerChunkX/Z
+        try {
+            const newChunkCoords = await updateTerrainChunks({
+                airplane, activeChunks,
+                currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+                scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+                generateTerrainChunk,
+                worldGenSettings, // Pass current settings
+                worldPopSettings  // Pass current settings
+            });
+            lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
+            lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
+        } catch (error) {
+            console.error("Error during chunk update in animate:", error)
+        }
+
+        light.position.set(
+            airplane.position.x + CHUNK_SIZE * 0.5,
+            airplane.position.y + CHUNK_SIZE,
+            airplane.position.z + CHUNK_SIZE * 0.5
+        );
+        light.target = airplane;
+    }
+
+    cameraHandler.update(deltaTime);
+
+    try {
+        renderer.render(scene, camera);
+    } catch (error) {
+        console.error("Error during renderer.render():", error);
+    }
+}
+
+if (renderer && scene && camera) {
+    console.log("Starting animation loop.");
+    animate();
+} else {
+    console.error("Renderer, Scene or Camera not initialized. Cannot start animation.");
+}
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

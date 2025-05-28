@@ -6,23 +6,20 @@ function lerp(t, a, b) {
 }
 
 class PerlinNoise {
-    constructor(seed = Math.random()) {
-        this.p = new Uint8Array(1024);
-        this.seed = seed; // Store the seed
+    constructor(seed = 0) { // Default seed to 0 for consistent terrain, or allow it to be set
+        this.p = new Uint8Array(512); // Increased permutation table size for larger integer coordinates before repeating pattern
+        this.seed = seed === 0 ? Date.now() : seed;
         this._initializePermutationTable();
     }
 
     _initializePermutationTable() {
-        // Use a local, seedable pseudo-random number generator (PRNG)
         let currentSeed = this.seed;
         const random = () => {
-            // Simple linear congruential generator (LCG)
-            // Parameters from POSIX.1-2001, glibc (used in Visual C++), Numerical Recipes
             const a = 1103515245;
             const c = 12345;
-            const m = Math.pow(2, 31) -1; // A large prime (Mersenne prime M31)
+            const m = Math.pow(2, 31) -1;
             currentSeed = (a * currentSeed + c) % m;
-            return currentSeed / m; // Normalize to [0, 1)
+            return currentSeed / m;
         };
 
         const pTable = new Uint8Array(256);
@@ -30,7 +27,6 @@ class PerlinNoise {
             pTable[i] = i;
         }
 
-        // Fisher-Yates Shuffle using the seeded PRNG
         for (let i = 255; i > 0; i--) {
             const j = Math.floor(random() * (i + 1));
             [pTable[i], pTable[j]] = [pTable[j], pTable[i]];
@@ -42,28 +38,30 @@ class PerlinNoise {
     }
 
     _fade(t) {
-        return t * t * t * (t * (t * 6 - 15) + 10); // 6t^5 - 15t^4 + 10t^3
+        return t * t * t * (t * (t * 6 - 15) + 10);
     }
 
     _grad3D(hash, x, y, z) {
-        const h = hash & 15;        // Convert low 4 bits of hash code into 12 gradient directions
+        const h = hash & 15;
         const u = h < 8 ? x : y;
         const v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
         return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
     }
 
     noise3D(x, y, z) {
-        let X = Math.floor(x) & 255; // Integer part of x, clamped to 0-255
-        let Y = Math.floor(y) & 255; // Integer part of y
-        let Z = Math.floor(z) & 255; // Integer part of z
+        // Ensure positive coordinates for modulo arithmetic if necessary, though floor handles negatives.
+        // The & 255 operation will handle wrapping for the permutation table lookup.
+        let X = Math.floor(x) & 255;
+        let Y = Math.floor(y) & 255;
+        let Z = Math.floor(z) & 255;
 
-        x -= Math.floor(x);          // Fractional part of x
-        y -= Math.floor(y);          // Fractional part of y
-        z -= Math.floor(z);          // Fractional part of z
+        x -= Math.floor(x);
+        y -= Math.floor(y);
+        z -= Math.floor(z);
 
-        const u = this._fade(x);     // Smoothly interpolated fractional part of x
-        const v = this._fade(y);     // Smoothly interpolated fractional part of y
-        const w = this._fade(z);     // Smoothly interpolated fractional part of z
+        const u = this._fade(x);
+        const v = this._fade(y);
+        const w = this._fade(z);
 
         const A = this.p[X] + Y;
         const AA = this.p[A] + Z;
@@ -72,7 +70,6 @@ class PerlinNoise {
         const BA = this.p[B] + Z;
         const BB = this.p[B + 1] + Z;
 
-        // Use standalone lerp for all interpolations
         return lerp(w,
             lerp(v,
                 lerp(u, this._grad3D(this.p[AA], x, y, z), this._grad3D(this.p[BA], x - 1, y, z)),
@@ -86,15 +83,14 @@ class PerlinNoise {
     }
 }
 
-// Instantiate Perlin Noise with a fixed seed for repeatable terrain
-const perlin = new PerlinNoise();
+// Instantiate Perlin Noise
+const perlin = new PerlinNoise(Date.now() % 1000);
 
-// Base multi-octave noise generation
 function multiOctavePerlinNoise3D(x, y, z, octaves = 6, persistence = 0.5, lacunarity = 2.0) {
     let total = 0;
     let frequency = 1.0;
     let amplitude = 1.0;
-    let maxValue = 0;  // Used to normalize the result to the range [-1, 1]
+    let maxValue = 0;
 
     for (let i = 0; i < octaves; i++) {
         total += perlin.noise3D(x * frequency, y * frequency, z * frequency) * amplitude;
@@ -102,62 +98,76 @@ function multiOctavePerlinNoise3D(x, y, z, octaves = 6, persistence = 0.5, lacun
         amplitude *= persistence;
         frequency *= lacunarity;
     }
-
-    // Normalize to [-1, 1] then map to [0, 1]
     return (total / maxValue + 1) / 2;
 }
 
-// Generate noise for mountainous terrain
 function generateMountainNoise(x, y, z) {
     return multiOctavePerlinNoise3D(x, y, z, 8, 0.6, 2.0);
 }
 
-// Generate noise for plains terrain
 function generatePlainsNoise(x, y, z) {
     return multiOctavePerlinNoise3D(x, y, z, 4, 0.3, 2.0);
 }
 
-// Generate noise to act as a terrain type map (smooth transitions between plains and mountains)
 function generateTerrainTypeNoise(x, y, z) {
-    return multiOctavePerlinNoise3D(x * 0.1, y * 0.1, z * 0.1, 3, 0.4, 2.0);
+    return multiOctavePerlinNoise3D(x * 0.1, y * 0.1, z * 0.1, 3, 0.4, 2.0); // Slower changing noise for broader areas
 }
 
-// Generate noise for river potential (using absolute value to create ridges/valleys)
 function generateRiverMaskNoise(x, y, z) {
     const noiseVal = multiOctavePerlinNoise3D(x * 0.5, y * 0.5, z * 0.5, 6, 0.5, 2.0);
-    // Map noise from [0,1] to [-1,1] then take absolute value. Results in values near 0 being potential rivers.
     return Math.abs(noiseVal * 2 - 1);
 }
+// Helper for smoothstep, if not already available
+function smoothstep(edge0, edge1, x) {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+}
 
+export function generateCombinedTerrain(x, y, z,
+    mountain_threshold = 0.6, // This might now represent a midpoint or upper bound of a blend zone
+    mountain_blend_range = 0.2, // How wide the transition zone is
+    river_threshold = 0.1,
+    river_blend_range = 0.05, // Transition zone for rivers
+    river_depth = 0.15) {
 
-// Main function to combine different terrain types and rivers
-export function generateCombinedTerrain(x, y, z, mountain_threshold = 0.6, river_threshold = 0.1, river_depth = 0.15) {
-    const terrainType = generateTerrainTypeNoise(x, y, z); // Value from 0 to 1
-
+    const terrainType = generateTerrainTypeNoise(x, y, z);
     const plainsNoiseVal = generatePlainsNoise(x, y, z);
     const mountainNoiseVal = generateMountainNoise(x, y, z);
     let terrainHeight;
 
-    // Blend between plains and mountains based on terrainType
-    if (terrainType < mountain_threshold) {
-        // As terrainType goes from 0 to mountain_threshold, blend from plains to mountains
-        const blendFactor = terrainType / mountain_threshold; // 0 to 1
-        terrainHeight = lerp(blendFactor, plainsNoiseVal, mountainNoiseVal);
+    // Smoothly blend between plains and mountains
+    // Determine the start and end of the transition zone for mountains
+    const mountain_lower_bound = mountain_threshold - mountain_blend_range / 2;
+    const mountain_upper_bound = mountain_threshold + mountain_blend_range / 2;
+
+    // Calculate mountain influence (0 for pure plains, 1 for pure mountain)
+    let mountainInfluence;
+    if (mountain_blend_range <= 0) { // Handle no blend range (hard switch)
+        mountainInfluence = (terrainType >= mountain_threshold) ? 1.0 : 0.0;
     } else {
-        // Above or at the threshold, it's primarily mountain terrain.
-        // This ensures continuity as the previous block approaches mountainNoiseVal at the threshold.
-        terrainHeight = mountainNoiseVal;
+        // Using smoothstep for a smoother transition
+        mountainInfluence = smoothstep(mountain_lower_bound, mountain_upper_bound, terrainType);
+        // Alternatively, for a linear transition:
+        const t = (terrainType - mountain_lower_bound) / mountain_blend_range;
+        mountainInfluence = Math.max(0, Math.min(1, t));
     }
+    terrainHeight = lerp(mountainInfluence, plainsNoiseVal, mountainNoiseVal);
 
-    // Generate river mask value (0 to 1, where lower values are potential river areas)
     const riverMask = generateRiverMaskNoise(x, y, z);
+    const river_lower_bound = river_threshold - river_blend_range / 2;
 
-    // Apply river carving
-    if (riverMask < river_threshold) {
-        const riverInfluence = 1.0 - (riverMask / river_threshold);
-        terrainHeight -= riverInfluence * river_depth; // Reduce height to carve river
-        terrainHeight = Math.max(terrainHeight, 0);
+    let riverFactor;
+    if (river_blend_range <= 0) {
+        riverFactor = (riverMask < river_threshold) ? 1.0 : 0.0;
+    } else {
+        const t_river = (riverMask - river_lower_bound) / river_blend_range;
+        riverFactor = 1.0 - Math.max(0, Math.min(1, t_river)); // Linear, inverted
     }
 
-    return Math.max(0, Math.min(1, terrainHeight)); // Final clamp to [0, 1]
+    if (riverFactor > 0) {
+        terrainHeight -= riverFactor * river_depth;
+    }
+
+    // Ensure final height is clamped to the normalized range [0,1]
+    return Math.max(0, Math.min(1, terrainHeight));
 }

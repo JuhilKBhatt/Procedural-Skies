@@ -9,12 +9,29 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three/build/three.module.js",
-                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js",
+                "GUI": "https://unpkg.com/three/examples/jsm/libs/lil-gui.module.min.js"
             }
         }
     </script>
 </head>
 <body>
+    <div id="ui-container">
+        <div class="ui-element" id="throttle-display">
+            <span>Throttle: <span id="throttle-value">0</span>%</span>
+            <div id="throttle-bar-container">
+                <div id="throttle-bar"></div>
+            </div>
+        </div>
+        <div class="ui-element">
+            <span>Attitude:</span>
+            <div id="attitude-indicator">
+                <div id="ai-ground"></div>
+                <div id="ai-roll-indicator"></div>
+                <div id="ai-airplane-symbol"></div>
+            </div>
+        </div>
+    </div>
     <script type="module" src="./main.js"></script>
 </body>
 </html>
