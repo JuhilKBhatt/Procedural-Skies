@@ -37,7 +37,12 @@ export class CameraHandler {
         this.useFollowCamera = true;
         this.controls.enabled = !this.useFollowCamera; // Orbit controls disabled when follow cam is active
 
-        this.cameraLerpFactor = 0.07;
+        this.cameraLerpFactor = 0.07; // Factor for positional and rotational smoothing
+
+        // Helper objects for quaternion slerp to avoid re-creation per frame
+        this._tempMatrix = new THREE.Matrix4();
+        this._targetQuaternion = new THREE.Quaternion();
+
 
         this.initEventListeners();
 
@@ -66,7 +71,7 @@ export class CameraHandler {
         }
         // If target is set, update follow camera immediately if active
         if (this.useFollowCamera && this.targetObject) {
-            this.updateFollowCameraLogic(1.0); // Teleport camera to target instantly
+            this.updateFollowCameraLogic(1.0); // Teleport camera to target instantly (100% lerp)
         }
     }
 
@@ -91,14 +96,13 @@ export class CameraHandler {
         if (!this.useFollowCamera && this.targetObject && this.targetObject.position) {
             // When switching to OrbitControls, set its target to the current airplane position
             this.controls.target.copy(this.targetObject.position);
-            // Optionally, you might want to set the camera to its current offset position
-            // instead of letting OrbitControls decide the initial view based on its last state.
+            // Set camera to its current offset relative to the target for a smoother transition
             const currentOffset = this.camera.position.clone().sub(this.targetObject.position);
             this.camera.position.copy(this.targetObject.position.clone().add(currentOffset));
             this.controls.update();
         } else if (this.useFollowCamera && this.targetObject) {
             // When switching back to follow camera, instantly update to avoid lag
-             this.updateFollowCameraLogic(1.0); // Teleport to target
+             this.updateFollowCameraLogic(1.0); // Teleport to target (100% lerp for position and rotation)
         }
         console.log(`Camera mode toggled. Follow Camera: ${this.useFollowCamera}`);
     }
@@ -106,21 +110,45 @@ export class CameraHandler {
     updateFollowCameraLogic(lerpFactor) {
         if (!this.targetObject || !this.targetObject.position || !this.targetObject.quaternion) return;
 
-        const targetPosition = this.targetObject.position.clone();
+        const targetBodyPosition = this.targetObject.position.clone(); // Position of the airplane's physics body
+        
+        // 1. Calculate the desired camera position
+        // The offset is rotated by the airplane's quaternion to follow its orientation
         const offset = this.config.cameraOffset.clone().applyQuaternion(this.targetObject.quaternion);
-        const desiredCameraPosition = targetPosition.clone().add(offset);
+        const desiredCameraPosition = targetBodyPosition.clone().add(offset);
 
+        // 2. Lerp the camera's actual position towards the desired position
         this.camera.position.lerp(desiredCameraPosition, lerpFactor);
 
-        const lookAtPosition = targetPosition.clone().add(this.config.lookAtOffset.clone().applyQuaternion(this.targetObject.quaternion));
-        this.camera.lookAt(lookAtPosition);
+        // 3. Calculate the desired look-at point
+        // This point is also relative to the airplane and rotates with it
+        const lookAtPosition = targetBodyPosition.clone().add(this.config.lookAtOffset.clone().applyQuaternion(this.targetObject.quaternion));
+        
+        // 4. Smoothly update camera orientation (rotation)
+        // Instead of direct camera.lookAt(), we slerp the quaternion.
+
+        // Set the temporary matrix to look from the camera's NEW (lerped) position towards the lookAtPosition.
+        // The camera's 'up' vector (usually Y-axis) is used to orient this lookAt.
+        this._tempMatrix.lookAt(this.camera.position, lookAtPosition, this.camera.up);
+        
+        // Extract the desired rotation as a quaternion from this matrix.
+        this._targetQuaternion.setFromRotationMatrix(this._tempMatrix);
+
+        // Spherically interpolate (slerp) the camera's current quaternion towards the target quaternion.
+        // This creates a smooth rotational transition.
+        this.camera.quaternion.slerp(this._targetQuaternion, lerpFactor);
+
+        // The direct camera.lookAt(lookAtPosition) is no longer needed here.
     }
 
     update(_deltaTime) { // deltaTime can be used for more sophisticated lerping if needed
         if (this.useFollowCamera && this.targetObject) {
+            // For now, using fixed lerpFactor. For frame-rate independent smoothing,
+            // you could calculate an effectiveLerpFactor based on _deltaTime.
+            // Example: const effectiveLerp = 1.0 - Math.exp(-SMOOTHING_CONSTANT * _deltaTime);
             this.updateFollowCameraLogic(this.cameraLerpFactor);
         } else {
-            this.controls.update();
+            this.controls.update(); // Update OrbitControls if active
         }
     }
 
