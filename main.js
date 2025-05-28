@@ -11,16 +11,16 @@ import { GUI } from 'GUI';
 
 // --- GUI Settings Objects ---
 const worldGenSettings = {
-    TERRAIN_MAX_HEIGHT: 80,     // Default from original worldGeneration.js
-    TERRAIN_MIN_HEIGHT: -40,    // Default from original worldGeneration.js
-    NOISE_INPUT_SCALE: 0.007,   // Default from original worldGeneration.js
+    TERRAIN_MAX_HEIGHT: 80,
+    TERRAIN_MIN_HEIGHT: -40,
+    NOISE_INPUT_SCALE: 0.007,
     regenerateWorld: async () => { /* Implementation below */ }
 };
 
 const worldPopSettings = {
-    CLUSTERS_PER_CHUNK: 1,      // Default from original worldPopulate.js
-    OBJECTS_PER_CLUSTER: 5,     // Default from original worldPopulate.js
-    CLOUDS_PER_CHUNK: 2,        // Default from original worldPopulate.js
+    CLUSTERS_PER_CHUNK: 1,
+    OBJECTS_PER_CLUSTER: 5,
+    CLOUDS_PER_CHUNK: 2,
     repopulateChunks: async () => { /* Implementation below */ }
 };
 
@@ -30,7 +30,7 @@ const throttleValueElement = document.getElementById('throttle-value');
 const throttleBarElement = document.getElementById('throttle-bar');
 const attitudeIndicatorElement = document.getElementById('attitude-indicator');
 const aiGroundElement = document.getElementById('ai-ground');
-const aiRollIndicatorElement = document.getElementById('ai-roll-indicator'); // Get the roll indicator
+const aiRollIndicatorElement = document.getElementById('ai-roll-indicator');
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -42,19 +42,18 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Initialize CameraHandler
 const cameraHandler = new CameraHandler(renderer.domElement, {
     fov: 75,
     near: 0.1,
-    far: CHUNK_SIZE * 20, // Use CHUNK_SIZE for dynamic far plane
-    initialChunkSize: CHUNK_SIZE, // Pass CHUNK_SIZE for other internal settings
-    cameraOffset: new THREE.Vector3(0, 10, -30), // Your original offset
-    lookAtOffset: new THREE.Vector3(0, 5, 0)    // Your original lookAt offset
+    far: CHUNK_SIZE * 20,
+    initialChunkSize: CHUNK_SIZE,
+    cameraOffset: new THREE.Vector3(0, 10, -30),
+    lookAtOffset: new THREE.Vector3(0, 5, 0)
 });
-const camera = cameraHandler.getCamera(); // Get the camera instance for the scene and renderer
+const camera = cameraHandler.getCamera();
 
 const world = new CANNON.World();
-world.gravity.set(0, -4, 0); // Adjusted gravity
+world.gravity.set(0, -4, 0);
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.solver.iterations = 10;
 
@@ -145,14 +144,18 @@ worldGenSettings.regenerateWorld = async () => {
 
     if (airplane && airplane.physicsBody) {
         console.log("Forcing terrain chunk update after regeneration...");
+
+        previousAirplanePhysicsPosition.copy(airplane.physicsBody.position);
+        previousAirplanePhysicsQuaternion.copy(airplane.physicsBody.quaternion);
+
         try {
             const newChunkCoords = await updateTerrainChunks({
                 airplane, activeChunks,
                 currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
                 scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
                 generateTerrainChunk,
-                worldGenSettings, // Pass new settings
-                worldPopSettings  // Pass new settings
+                worldGenSettings,
+                worldPopSettings
             });
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
@@ -168,15 +171,20 @@ worldGenSettings.regenerateWorld = async () => {
 worldPopSettings.repopulateChunks = async () => {
     console.log("Repopulating chunks with settings:", worldPopSettings);
     console.warn("Current 'Repopulate Chunks' triggers a full world regeneration. For optimized repopulation, further decoupling of populateChunk is needed.");
-    await worldGenSettings.regenerateWorld(); // Uses the full regeneration logic
+    await worldGenSettings.regenerateWorld();
 };
-
 
 try {
     audioHandler = new AudioHandler('./assets/audio/engineLoop.mp3');
 } catch (error) {
     console.error("Error creating AudioHandler instance:", error);
 }
+
+// For physics interpolation
+const physicsFixedTimeStep = 1 / 60; // Run physics at 60Hz
+let physicsAccumulator = 0;
+let previousAirplanePhysicsPosition = new THREE.Vector3();
+let previousAirplanePhysicsQuaternion = new THREE.Quaternion();
 
 try {
     airplane = createAirplane(scene, world);
@@ -190,13 +198,20 @@ if (airplane) {
         console.log("Airplane physicsBody exists.");
         airplane.physicsBody.material = airplaneMaterial;
         airplane.physicsBody.position.set(0, CHUNK_SIZE * 0.5, 0);
-        airplane.physicsBody.wakeUp();
+        airplane.physicsBody.wakeUp(); // Ensure the body is active
+
+        // Initialize previous physics state for interpolation
+        previousAirplanePhysicsPosition.copy(airplane.physicsBody.position);
+        previousAirplanePhysicsQuaternion.copy(airplane.physicsBody.quaternion);
+
+        // Sync visual mesh to physics body initially
         airplane.position.copy(airplane.physicsBody.position);
         airplane.quaternion.copy(airplane.physicsBody.quaternion);
+
         cameraHandler.setTarget(airplane);
     } else {
         console.error("Airplane created, but airplane.physicsBody is missing!");
-        airplane.position.set(0, CHUNK_SIZE * 0.5, 0);
+        airplane.position.set(0, CHUNK_SIZE * 0.5, 0); // Fallback if no physics
     }
 
     airplane.traverse(node => {
@@ -206,12 +221,8 @@ if (airplane) {
         }
     });
 
-try {
+    try {
         controlHandler = new ControlHandler(airplane);
-        if (airplane.flightPhysics) { // Initialize GUI throttle from physics if available
-            airplaneControlSettings.throttle = airplane.flightPhysics.throttle;
-            if(controlHandler) controlHandler.currentThrottle = airplane.flightPhysics.throttle;
-        }
     } catch (error) {
         console.error("Error during new ControlHandler():", error);
     }
@@ -223,8 +234,8 @@ try {
             currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
             scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
             generateTerrainChunk,
-            worldGenSettings, // Pass initial settings
-            worldPopSettings  // Pass initial settings
+            worldGenSettings,
+            worldPopSettings
         }).then(newChunkCoords => {
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
@@ -239,117 +250,122 @@ try {
     cameraHandler.setFallbackMode(new THREE.Vector3(0, 50, 100));
 }
 
-// --- Handle First User Interaction for Audio ---
 function handleFirstInteractionForAudio() {
     if (!firstUserInteraction && audioHandler) {
         console.log("First user interaction detected, attempting to resume audio context.");
-        audioHandler.resumeContext(); // Attempt to resume the audio context
+        audioHandler.resumeContext();
         firstUserInteraction = true;
-        // Remove listeners after the first interaction
         window.removeEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
         window.removeEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
         window.removeEventListener('touchstart', handleFirstInteractionForAudio, { capture: true });
     }
 }
 
-// Listen for various user interactions to resume audio context
-// Using capture: true to catch the event early
 window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
 window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
-window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
+window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true });
 
-async function animate() { // Make animate async if it directly awaits updateTerrainChunks
+async function animate() {
     requestAnimationFrame(animate);
     const deltaTime = clock.getDelta();
-    const fixedTimeStep = 1 / 60;
 
     if (controlHandler) {
         try {
-            controlHandler.updateAirplane();
+            controlHandler.updateAirplane(); // Apply controls to affect physics for the next step
         } catch (error) {
-            console.error("Error in controlHandler.update():", error);
+            console.error("Error in controlHandler.updateAirplane():", error);
         }
     }
 
-    world.step(fixedTimeStep, deltaTime, 3);
-
     if (airplane && airplane.physicsBody) {
-        airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        physicsAccumulator += deltaTime;
 
-        if (typeof airplane.update === 'function') {
-            try {
-                airplane.update(deltaTime);
-            } catch (error) {
-                console.error("Error in airplane.update():", error);
+        // Fixed timestep for physics
+        while (physicsAccumulator >= physicsFixedTimeStep) {
+            // Store the state *before* the physics step for interpolation
+            previousAirplanePhysicsPosition.copy(airplane.physicsBody.position);
+            previousAirplanePhysicsQuaternion.copy(airplane.physicsBody.quaternion);
+
+            // Step the physics world
+            world.step(physicsFixedTimeStep);
+
+            // Update airplane's internal logic (e.g., custom flight model adjustments after physics)
+            if (typeof airplane.update === 'function') {
+                try {
+                    airplane.update(physicsFixedTimeStep); // Pass fixed step for consistent updates
+                } catch (error) {
+                    console.error("Error in airplane.update():", error);
+                }
             }
+            physicsAccumulator -= physicsFixedTimeStep;
         }
 
-        // --- Update UI Elements ---
+        // Calculate alpha for interpolation
+        const alpha = physicsAccumulator / physicsFixedTimeStep;
+
+        // Interpolate the visual representation (THREE.js mesh)
+        airplane.position.lerpVectors(previousAirplanePhysicsPosition, airplane.physicsBody.position, alpha);
+        // For quaternion slerp, it's good to clone the 'from' quaternion if it's the same object instance you are slerping to.
+        // Here, previousAirplanePhysicsQuaternion is distinct from airplane.physicsBody.quaternion.
+        airplane.quaternion.copy(previousAirplanePhysicsQuaternion).slerp(airplane.physicsBody.quaternion, alpha);
+
+
+        // --- Update UI Elements --- (Usually based on the "true" physics state)
         if (airplane.flightPhysics) {
-            // Throttle Update
             if (throttleValueElement && throttleBarElement) {
                 const throttlePercentage = (airplane.flightPhysics.throttle || 0) * 100;
                 throttleValueElement.textContent = throttlePercentage.toFixed(0);
                 throttleBarElement.style.width = `${throttlePercentage}%`;
             }
-
-            // Attitude Indicator Update
             if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
-                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
-
-                let pitch = euler.x; // Radians
-                let roll = euler.z;  // Radians
-
-                // Adjust pitch for the visual
+                const euler = new THREE.Euler().setFromQuaternion(airplane.physicsBody.quaternion, 'YXZ'); // Use current physics state for UI
+                let pitch = euler.x;
+                let roll = euler.z;
                 const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
                 const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
                 const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
-
-                // Roll
                 const rollDegrees = THREE.MathUtils.radToDeg(roll);
-
-                // Apply transformations
                 aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
                 aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
-
             }
         }
 
         if (audioHandler && airplane.flightPhysics && typeof audioHandler.updateThrottleSound === 'function') {
             try {
-                // Pass the actual throttle value from your airplane's flight physics
                 audioHandler.updateThrottleSound(airplane.flightPhysics.throttle);
             } catch (error) {
                 console.error("Error in audioHandler.updateThrottleSound():", error);
             }
         }
 
-        // Call the imported function and update lastPlayerChunkX/Z
+        // Update terrain chunks
+        // Note: airplane.position used by updateTerrainChunks will be the interpolated one.
+        // If it needs the physics position, it should access airplane.physicsBody.position directly.
         try {
             const newChunkCoords = await updateTerrainChunks({
                 airplane, activeChunks,
                 currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
                 scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
                 generateTerrainChunk,
-                worldGenSettings, // Pass current settings
-                worldPopSettings  // Pass current settings
+                worldGenSettings,
+                worldPopSettings
             });
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
         } catch (error) {
-            console.error("Error during chunk update in animate:", error)
+            console.error("Error during chunk update in animate:", error);
         }
 
+        // Light follows the interpolated visual position of the airplane
         light.position.set(
             airplane.position.x + CHUNK_SIZE * 0.5,
             airplane.position.y + CHUNK_SIZE,
             airplane.position.z + CHUNK_SIZE * 0.5
         );
-        light.target = airplane;
+        light.target = airplane; // light will use the interpolated airplane.position
     }
 
-    cameraHandler.update(deltaTime);
+    cameraHandler.update(deltaTime); // Camera updates based on its target (the interpolated airplane)
 
     try {
         renderer.render(scene, camera);
@@ -366,7 +382,9 @@ if (renderer && scene && camera) {
 }
 
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (camera && renderer) { // Ensure camera and renderer are initialized
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 });
