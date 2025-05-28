@@ -54,6 +54,8 @@ function cleanSingleMaterial(mat) {
  * @param {number} params.CHUNK_SIZE - The size of each chunk.
  * @param {number} params.VIEW_DISTANCE_CHUNKS - The view distance in chunks.
  * @param {function} params.generateTerrainChunk - Function to generate a new terrain chunk.
+ * @param {object} params.worldGenSettings - Settings for terrain generation (e.g., height, noise).
+ * @param {object} params.worldPopSettings - Settings for world population (e.g., object density).
  * @returns {Promise<{lastPlayerChunkX: number, lastPlayerChunkZ: number}>} Resolves with the updated player chunk coordinates.
  */
 export async function updateTerrainChunks({
@@ -67,11 +69,20 @@ export async function updateTerrainChunks({
     light,
     CHUNK_SIZE,
     VIEW_DISTANCE_CHUNKS,
-    generateTerrainChunk
+    generateTerrainChunk,
+    worldGenSettings,  // <-- Added
+    worldPopSettings   // <-- Added
 }) {
     if (!airplane || !airplane.physicsBody || !airplane.physicsBody.position) {
+        console.warn("Airplane or its physics body/position is not available for chunk update.");
         return { lastPlayerChunkX: currentLastPlayerChunkX, lastPlayerChunkZ: currentLastPlayerChunkZ };
     }
+     if (!worldGenSettings || !worldPopSettings) {
+        console.error("worldGenSettings or worldPopSettings are missing in updateTerrainChunks call!");
+        // Potentially use defaults or skip update if critical settings are missing
+        return { lastPlayerChunkX: currentLastPlayerChunkX, lastPlayerChunkZ: currentLastPlayerChunkZ };
+    }
+
 
     const playerX = airplane.physicsBody.position.x;
     const playerZ = airplane.physicsBody.position.z;
@@ -93,41 +104,49 @@ export async function updateTerrainChunks({
         for (let j = -VIEW_DISTANCE_CHUNKS; j <= VIEW_DISTANCE_CHUNKS; j++) {
             const chunkX = currentChunkX + i;
             const chunkZ = currentChunkZ + j;
-            const key = getChunkKey(chunkX, chunkZ); // Uses local getChunkKey
+            const key = getChunkKey(chunkX, chunkZ);
             chunksToKeep.add(key);
 
             if (!activeChunks.has(key)) {
-                activeChunks.set(key, { status: 'loading' });
+                activeChunks.set(key, { status: 'loading' }); // Mark as loading
                 loadPromises.push(
-                    generateTerrainChunk(chunkX, chunkZ, scene, world, terrainMaterial)
+                    generateTerrainChunk(
+                        chunkX,
+                        chunkZ,
+                        scene,
+                        world,
+                        terrainMaterial,
+                        worldGenSettings, // Pass settings
+                        worldPopSettings  // Pass settings
+                    )
                         .then(newChunk => {
-                            if (activeChunks.get(key)?.status === 'loading') {
+                            // Check if the chunk is still supposed to be loading/active
+                            const currentStatus = activeChunks.get(key);
+                            if (currentStatus && currentStatus.status === 'loading') {
                                 activeChunks.set(key, newChunk);
                             } else {
-                                // Chunk was removed before loading completed, or marked for removal
+                                // Chunk was removed or load was cancelled before completing
+                                console.log(`Discarding late-loaded or cancelled chunk: ${key}`);
                                 scene.remove(newChunk.mesh);
                                 if (newChunk.mesh.geometry) newChunk.mesh.geometry.dispose();
-                                if (newChunk.mesh.material) cleanMaterial(newChunk.mesh.material); // Uses local cleanMaterial
-                                world.removeBody(newChunk.body);
+                                if (newChunk.mesh.material) cleanMaterial(newChunk.mesh.material);
+                                if (newChunk.body) world.removeBody(newChunk.body); // Ensure body is removed
                                 if (newChunk.populatedObjects) {
                                     newChunk.populatedObjects.forEach(obj => {
                                         scene.remove(obj);
                                         obj.traverse(child => {
                                             if (child.isMesh) {
                                                 if (child.geometry) child.geometry.dispose();
-                                                if (child.material) {
-                                                    cleanMaterial(child.material); // Uses local cleanMaterial
-                                                }
+                                                if (child.material) cleanMaterial(child.material);
                                             }
                                         });
                                     });
                                 }
-                                console.log(`Discarded late-loaded chunk: ${key}`);
                             }
                         })
                         .catch(error => {
-                            console.error(`Error generating chunk ${chunkX},${chunkZ}:`, error);
-                            if (activeChunks.get(key)?.status === 'loading') {
+                            console.error(`Error generating chunk ${key}:`, error);
+                            if (activeChunks.get(key)?.status === 'loading') { // Check status before deleting
                                 activeChunks.delete(key);
                             }
                         })
@@ -136,35 +155,50 @@ export async function updateTerrainChunks({
         }
     }
 
-    await Promise.all(loadPromises);
+    // Wait for all new chunk generation promises to resolve or reject
+    try {
+        await Promise.all(loadPromises);
+    } catch (error) {
+        // This catch block might be redundant if individual promises handle their errors,
+        // but it's good for a top-level catch for Promise.all itself.
+        console.error("Error during batch chunk loading:", error);
+    }
 
+
+    // Unload chunks that are no longer in view
     activeChunks.forEach((chunkData, key) => {
-        if (!chunksToKeep.has(key) && chunkData.status !== 'loading') {
-            if (chunkData.mesh) {
-                scene.remove(chunkData.mesh);
-                if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
-                if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material); // Uses local cleanMaterial
-            }
-            if (chunkData.body) {
-                world.removeBody(chunkData.body);
-            }
-            if (chunkData.populatedObjects) {
-                chunkData.populatedObjects.forEach(obj => {
-                    scene.remove(obj);
-                    obj.traverse(child => {
-                        if (child.isMesh) {
-                            if (child.geometry) child.geometry.dispose();
-                            if (child.material) {
-                                cleanMaterial(child.material); // Uses local cleanMaterial
+        if (!chunksToKeep.has(key)) {
+            // Only remove if it's fully loaded (not in 'loading' state)
+            // Or if it has actual mesh/body data (indicating it was at least partially processed)
+            if (chunkData.status !== 'loading' || chunkData.mesh) {
+                if (chunkData.mesh) {
+                    scene.remove(chunkData.mesh);
+                    if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
+                    if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material);
+                }
+                if (chunkData.body) {
+                    world.removeBody(chunkData.body);
+                }
+                if (chunkData.populatedObjects) {
+                    chunkData.populatedObjects.forEach(obj => {
+                        scene.remove(obj);
+                        obj.traverse(child => {
+                            if (child.isMesh) {
+                                if (child.geometry) child.geometry.dispose();
+                                if (child.material) cleanMaterial(child.material);
                             }
-                        }
+                        });
                     });
-                });
+                }
+                activeChunks.delete(key);
+                // console.log(`Unloaded chunk: ${key}`);
             }
-            activeChunks.delete(key);
         }
     });
-    if (light && light.shadow) light.shadow.camera.updateProjectionMatrix();
+
+    if (light && light.shadow) {
+        light.shadow.camera.updateProjectionMatrix();
+    }
 
     return { lastPlayerChunkX: newLastPlayerChunkX, lastPlayerChunkZ: newLastPlayerChunkZ };
 }
