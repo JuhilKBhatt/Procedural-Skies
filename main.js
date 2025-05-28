@@ -208,10 +208,6 @@ if (airplane) {
 
 try {
         controlHandler = new ControlHandler(airplane);
-        if (airplane.flightPhysics) { // Initialize GUI throttle from physics if available
-            airplaneControlSettings.throttle = airplane.flightPhysics.throttle;
-            if(controlHandler) controlHandler.currentThrottle = airplane.flightPhysics.throttle;
-        }
     } catch (error) {
         console.error("Error during new ControlHandler():", error);
     }
