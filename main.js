@@ -1,4 +1,4 @@
-// main.js (modifications highlighted)
+// ./main.js
 import * as THREE from 'three';
 import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
@@ -9,28 +9,29 @@ import { CameraHandler } from './assets/scripts/camera.js';
 import { AudioHandler } from './assets/scripts/audioHandler.js';
 import { GUI } from 'GUI';
 
-// --- GUI Settings Objects ---
+// GUI settings
 const worldGenSettings = {
-    TERRAIN_MAX_HEIGHT: 80,     // Default from original worldGeneration.js
-    TERRAIN_MIN_HEIGHT: -40,    // Default from original worldGeneration.js
-    NOISE_INPUT_SCALE: 0.007,   // Default from original worldGeneration.js
-    regenerateWorld: async () => { /* Implementation below */ }
+    TERRAIN_MAX_HEIGHT: 80, 
+    TERRAIN_MIN_HEIGHT: -40,
+    NOISE_INPUT_SCALE: 0.007,
+    regenerateWorld: async () => {}
 };
 
 const worldPopSettings = {
-    CLUSTERS_PER_CHUNK: 1,      // Default from original worldPopulate.js
-    OBJECTS_PER_CLUSTER: 5,     // Default from original worldPopulate.js
-    CLOUDS_PER_CHUNK: 2,        // Default from original worldPopulate.js
-    repopulateChunks: async () => { /* Implementation below */ }
+    CLUSTERS_PER_CHUNK: 1,
+    OBJECTS_PER_CLUSTER: 5,
+    CLOUDS_PER_CHUNK: 2,
+    repopulateChunks: async () => {}
 };
 
 const gui = new GUI();
 
+// HUD elements
 const throttleValueElement = document.getElementById('throttle-value');
 const throttleBarElement = document.getElementById('throttle-bar');
 const attitudeIndicatorElement = document.getElementById('attitude-indicator');
 const aiGroundElement = document.getElementById('ai-ground');
-const aiRollIndicatorElement = document.getElementById('ai-roll-indicator'); // Get the roll indicator
+const aiRollIndicatorElement = document.getElementById('ai-roll-indicator');
 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
@@ -42,19 +43,20 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Initialize CameraHandler
+// Initialise CameraHandler
 const cameraHandler = new CameraHandler(renderer.domElement, {
     fov: 75,
     near: 0.1,
-    far: CHUNK_SIZE * 20, // Use CHUNK_SIZE for dynamic far plane
-    initialChunkSize: CHUNK_SIZE, // Pass CHUNK_SIZE for other internal settings
-    cameraOffset: new THREE.Vector3(0, 10, -30), // Your original offset
-    lookAtOffset: new THREE.Vector3(0, 5, 0)    // Your original lookAt offset
+    far: CHUNK_SIZE * 20,
+    initialChunkSize: CHUNK_SIZE,
+    cameraOffset: new THREE.Vector3(0, 10, -30),
+    lookAtOffset: new THREE.Vector3(0, 5, 0)
 });
-const camera = cameraHandler.getCamera(); // Get the camera instance for the scene and renderer
+const camera = cameraHandler.getCamera();
 
+// Physics world setup
 const world = new CANNON.World();
-world.gravity.set(0, -4, 0); // Adjusted gravity
+world.gravity.set(0, -4, 0);
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.solver.iterations = 10;
 
@@ -97,18 +99,15 @@ const activeChunks = new Map();
 const VIEW_DISTANCE_CHUNKS = 2;
 let lastPlayerChunkX = null;
 let lastPlayerChunkZ = null;
-
 let airplane;
 let controlHandler;
 let audioHandler;
 let firstUserInteraction = false;
-
-// --- Physics interpolation variables ---
 let lastPhysicsUpdate = 0;
 const fixedTimeStep = 1 / 60;
-const MAX_SUBSTEPS = 10; // Prevent spiral of death if deltaTime is huge
+const MAX_SUBSTEPS = 10;
 
-// --- GUI Setup ---
+// GUI Setup
 const worldGenFolder = gui.addFolder('World Generation');
 worldGenFolder.add(worldGenSettings, 'TERRAIN_MAX_HEIGHT', 30, 300, 1).name('Max Height');
 worldGenFolder.add(worldGenSettings, 'TERRAIN_MIN_HEIGHT', -150, 0, 1).name('Min Height');
@@ -123,7 +122,7 @@ worldPopFolder.add(worldPopSettings, 'CLOUDS_PER_CHUNK', 0, 10, 1).name('Clouds/
 worldPopFolder.add(worldPopSettings, 'repopulateChunks').name('Repopulate Chunks');
 worldPopFolder.open();
 
-// --- World Regeneration and Repopulation Functions ---
+//World Regeneration
 worldGenSettings.regenerateWorld = async () => {
     console.log("Regenerating world with settings:", worldGenSettings);
     for (const [key, chunkData] of activeChunks) {
@@ -170,12 +169,12 @@ worldGenSettings.regenerateWorld = async () => {
     }
 };
 
+// Repopulation Functions
 worldPopSettings.repopulateChunks = async () => {
     console.log("Repopulating chunks with settings:", worldPopSettings);
     console.warn("Current 'Repopulate Chunks' triggers a full world regeneration. For optimized repopulation, further decoupling of populateChunk is needed.");
     await worldGenSettings.regenerateWorld(); // Uses the full regeneration logic
 };
-
 
 try {
     audioHandler = new AudioHandler('./assets/audio/engineLoop.mp3');
@@ -250,7 +249,7 @@ try {
     cameraHandler.setFallbackMode(new THREE.Vector3(0, 50, 100));
 }
 
-// --- Handle First User Interaction for Audio ---
+// Handle First User Interaction for Audio
 function handleFirstInteractionForAudio() {
     if (!firstUserInteraction && audioHandler) {
         console.log("First user interaction detected, attempting to resume audio context.");
@@ -264,16 +263,14 @@ function handleFirstInteractionForAudio() {
 }
 
 // Listen for various user interactions to resume audio context
-// Using capture: true to catch the event early
 window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: true });
 window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
 window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
 
 async function animate() {
     requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta(); // Time since last frame
+    const deltaTime = clock.getDelta();
 
-    // --- Physics Update Loop (Fixed Timestep) ---
     // Accumulate time to ensure physics steps are consistent
     lastPhysicsUpdate += deltaTime;
     let numSubsteps = 0;
@@ -288,7 +285,7 @@ async function animate() {
 
     if (controlHandler) {
         try {
-            controlHandler.updateAirplane(); // This typically applies forces/updates for the *next* physics step
+            controlHandler.updateAirplane();
         } catch (error) {
             console.error("Error in controlHandler.update():", error);
         }
@@ -328,7 +325,7 @@ async function animate() {
             }
         }
 
-        // --- Update UI Elements ---
+        // HUD Elements
         if (airplane.flightPhysics) {
             // Throttle Update
             if (throttleValueElement && throttleBarElement) {
@@ -341,8 +338,8 @@ async function animate() {
             if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
                 const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
 
-                let pitch = euler.x; // Radians
-                let roll = euler.z;  // Radians
+                let pitch = euler.x;
+                let roll = euler.z; 
 
                 // Adjust pitch for the visual
                 const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
@@ -375,8 +372,8 @@ async function animate() {
                 currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
                 scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
                 generateTerrainChunk,
-                worldGenSettings, // Pass current settings
-                worldPopSettings  // Pass current settings
+                worldGenSettings,
+                worldPopSettings
             });
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;

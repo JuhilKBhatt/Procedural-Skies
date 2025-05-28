@@ -1,22 +1,16 @@
-// LoadFBXModel.js
+// assets/scripts/LoadFBXModel.js
 import * as THREE from 'three';
 import { FBXLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/FBXLoader.js';
 
-// Cache for storing the promise of the *first* load of a unique model path.
-// The promise will resolve with the "raw" THREE.Object3D before any scene-specific transformations or cloning.
+// Cache for storing the promise
 const rawModelLoadPromises = new Map();
 
 /**
- * Asynchronously loads an FBX model. If the model asset has already been loaded,
- * it clones the cached asset instead of re-fetching and re-parsing the file.
- * Each returned model is a new instance, positioned and scaled as specified.
- *
  * @param {string} modelPath - Path to the FBX model file.
  * @param {THREE.Vector3} location - Position to place this instance of the model.
  * @param {THREE.Scene} scene - The scene to add this instance of the model to.
  * @param {number} [scale=0.0005] - Uniform scale factor for this instance of the model.
  * @returns {Promise<THREE.Object3D>} A promise that resolves with the configured model instance,
- * or rejects on error.
  */
 export function loadFBXModel(modelPath, location, scene, scale = 0.0005) {
     let rawModelPromise;
@@ -34,7 +28,6 @@ export function loadFBXModel(modelPath, location, scene, scale = 0.0005) {
                 (xhr) => { // onProgress callback for the initial load
                     if (xhr.lengthComputable) {
                         const percentComplete = xhr.loaded / xhr.total * 100;
-                        // console.log(`Initial load: ${modelPath} , ${Math.round(percentComplete)}% complete`);
                     }
                 },
                 (error) => {
@@ -55,6 +48,6 @@ export function loadFBXModel(modelPath, location, scene, scale = 0.0005) {
         scene.add(modelInstance);
         return modelInstance;
     }).catch(error => {
-        throw error; // Re-throw to be caught by the caller (e.g., in populateChunk)
+        throw error;
     });
 }

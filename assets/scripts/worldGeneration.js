@@ -5,10 +5,8 @@ import { calculateVertexColor } from './worldColour.js';
 import { populateChunk } from './worldPopulate.js';
 import * as CANNON from 'cannon-es';
 
-export const CHUNK_SIZE = 200; // Can be made dynamic if needed, but kept const for now
-export const CHUNK_SEGMENTS = 60; // Can be made dynamic if needed
-
-// TERRAIN_MAX_HEIGHT, TERRAIN_MIN_HEIGHT, NOISE_INPUT_SCALE are now passed via worldGenSettings
+export const CHUNK_SIZE = 200;
+export const CHUNK_SEGMENTS = 60;
 
 export async function generateTerrainChunk(
     chunkGridX,
@@ -16,8 +14,8 @@ export async function generateTerrainChunk(
     scene,
     world,
     terrainMaterial,
-    worldGenSettings,  // Added parameter
-    worldPopSettings   // Added parameter (to pass to populateChunk)
+    worldGenSettings,
+    worldPopSettings
 ) {
     const { TERRAIN_MAX_HEIGHT, TERRAIN_MIN_HEIGHT, NOISE_INPUT_SCALE } = worldGenSettings;
 
@@ -26,6 +24,7 @@ export async function generateTerrainChunk(
     const colors = [];
     const heightData = [];
 
+    // Initialise heightData as a 2D array for storing heights
     for (let i = 0; i <= CHUNK_SEGMENTS; i++) {
         heightData[i] = [];
         for (let j = 0; j <= CHUNK_SEGMENTS; j++) {
@@ -37,11 +36,11 @@ export async function generateTerrainChunk(
             const worldZ_noise = (chunkGridZ * -CHUNK_SIZE) + localY_geom;
 
             const normalizedHeight = generateCombinedTerrain(
-                worldX_noise * NOISE_INPUT_SCALE, // Use from settings
-                worldZ_noise * NOISE_INPUT_SCALE, // Use from settings
+                worldX_noise * NOISE_INPUT_SCALE,
+                worldZ_noise * NOISE_INPUT_SCALE,
                 0
             );
-            const actualHeight = TERRAIN_MIN_HEIGHT + normalizedHeight * (TERRAIN_MAX_HEIGHT - TERRAIN_MIN_HEIGHT); // Use from settings
+            const actualHeight = TERRAIN_MIN_HEIGHT + normalizedHeight * (TERRAIN_MAX_HEIGHT - TERRAIN_MIN_HEIGHT);
 
             vertices[vertexIndex + 2] = actualHeight;
             heightData[i][j] = actualHeight;
@@ -71,25 +70,21 @@ export async function generateTerrainChunk(
     const terrainChunkBody = new CANNON.Body({ mass: 0, material: terrainMaterial });
     terrainChunkBody.addShape(planeShape);
     terrainChunkBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    // Adjust physics plane Y based on TERRAIN_MIN_HEIGHT if it can go very low,
-    // or ensure it's slightly below the lowest possible visual terrain point.
-    // For simplicity, keeping it at a fixed low value, assuming MIN_HEIGHT won't make terrain go below this significantly.
-    terrainChunkBody.position.set(0, Math.min(-1, TERRAIN_MIN_HEIGHT - 10) , 0); // Ensure physics plane is below min terrain height
+    terrainChunkBody.position.set(0, Math.min(-1, TERRAIN_MIN_HEIGHT - 10) , 0);
     world.addBody(terrainChunkBody);
 
     let populatedObjects = [];
     try {
-        // Pass worldGenSettings for TERRAIN_MAX_HEIGHT needed by populateChunk for cloud placement, and worldPopSettings
         populatedObjects = await populateChunk(
             scene,
             terrainChunkMesh,
             chunkGridX,
             chunkGridZ,
             heightData,
-            worldGenSettings, // Pass through
-            worldPopSettings, // Pass through
-            CHUNK_SIZE,       // Pass const CHUNK_SIZE
-            CHUNK_SEGMENTS    // Pass const CHUNK_SEGMENTS
+            worldGenSettings,
+            worldPopSettings,
+            CHUNK_SIZE,
+            CHUNK_SEGMENTS
         );
     } catch (error) {
         console.error(`Error populating chunk ${chunkGridX}, ${chunkGridZ}:`, error);
@@ -101,7 +96,5 @@ export async function generateTerrainChunk(
         chunkGridX: chunkGridX,
         chunkGridZ: chunkGridZ,
         populatedObjects: populatedObjects,
-        // Storing heightData might be useful for true repopulation later
-        // heightData: heightData
     };
 }

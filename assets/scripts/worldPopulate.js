@@ -1,14 +1,13 @@
 // assets/scripts/worldPopulate.js
 import * as THREE from 'three';
 import { loadFBXModel } from './LoadFBXModel.js';
-// CHUNK_SIZE, TERRAIN_MAX_HEIGHT, CHUNK_SEGMENTS are now passed as parameters or taken from settings objects
 
 const CLOUD_MODELS = [
     'assets/models/cloud/Cloud_1.fbx', 'assets/models/cloud/Cloud_2.fbx', 'assets/models/cloud/Cloud_3.fbx',
     'assets/models/cloud/Cloud_4.fbx'
 ];
 
-const CLUSTER_RADIUS_MAX = 10; // This can also be made a setting if desired
+const CLUSTER_RADIUS_MAX = 10;
 
 const ALL_TERRAIN_MODELS_PATHS = [
     'assets/models/tree/TreePine.fbx', 'assets/models/tree/TreeRound.fbx',
@@ -16,9 +15,6 @@ const ALL_TERRAIN_MODELS_PATHS = [
     'assets/models/rock/Rock4.fbx', 'assets/models/rock/Rock5.fbx', 'assets/models/rock/Rock6.fbx'
 ];
 
-// getTerrainHeight function remains the same as provided in the prompt.
-// Ensure it's defined here or imported if it's in a separate utility.
-// For brevity, I'm assuming it's defined as in your provided snippet.
 function getTerrainHeight(worldX, worldZ, chunkGridX, chunkGridZ, heightData, chunkSize, chunkSegments) {
     const elementSize = chunkSize / chunkSegments;
     const hfOriginX = (chunkGridX * chunkSize) - (chunkSize / 2);
@@ -27,12 +23,6 @@ function getTerrainHeight(worldX, worldZ, chunkGridX, chunkGridZ, heightData, ch
     const relativeZ = worldZ - hfOriginZ;
     const fracX = relativeX / elementSize;
     const fracZ = relativeZ / elementSize;
-
-    if (fracX < 0 || fracX > chunkSegments || fracZ < 0 || fracZ > chunkSegments) {
-        // console.warn(`Coordinates ${worldX}, ${worldZ} (fracX: ${fracX}, fracZ: ${fracZ}) are outside expected heightData sampling range for chunk ${chunkGridX}, ${chunkGridZ}.`);
-        // Return a value at the edge or null. For simplicity, clamping might lead to objects at edge.
-        // Depending on strictness, can return null.
-    }
 
     const x1 = Math.floor(fracX);
     const x2 = Math.ceil(fracX);
@@ -51,7 +41,6 @@ function getTerrainHeight(worldX, worldZ, chunkGridX, chunkGridZ, heightData, ch
     const h_z2x2 = heightData[cZ2]?.[cX2];
 
     if ([h_z1x1, h_z1x2, h_z2x1, h_z2x2].some(h => typeof h !== 'number')) {
-        // console.error(`Height data missing for interpolation at ${worldX}, ${worldZ}. Indices: Z(${cZ1},${cZ2}), X(${cX1},${cX2}). Values: ${h_z1x1}, ${h_z1x2}, ${h_z2x1}, ${h_z2x2}`);
         return (heightData[0]?.[0] !== undefined) ? heightData[0][0] : 0; // Fallback to a default height or origin height
     }
 
@@ -85,11 +74,11 @@ export async function populateChunk(
     heightData,
     worldGenSettings,
     worldPopSettings,
-    currentChunkSize,     // Renamed to avoid conflict with any global CHUNK_SIZE if it existed
-    currentChunkSegments  // Renamed for clarity
+    currentChunkSize,
+    currentChunkSegments
 ) {
     const { CLUSTERS_PER_CHUNK, OBJECTS_PER_CLUSTER, CLOUDS_PER_CHUNK } = worldPopSettings;
-    const { TERRAIN_MAX_HEIGHT } = worldGenSettings; // For cloud height calculation
+    const { TERRAIN_MAX_HEIGHT } = worldGenSettings;
 
     const populatedObjectsCollector = [];
     const modelPlacementPromises = [];
@@ -97,6 +86,7 @@ export async function populateChunk(
     const chunkWorldX_center = chunkGridX * currentChunkSize;
     const chunkWorldZ_center = chunkGridZ * currentChunkSize;
 
+    // Place a model at a specific world position
     async function placeModel(modelPath, desiredWorldX, desiredWorldZ, desiredWorldY = null, scale) {
         let yPosition;
 
@@ -105,7 +95,6 @@ export async function populateChunk(
         } else {
             yPosition = getTerrainHeight(desiredWorldX, desiredWorldZ, chunkGridX, chunkGridZ, heightData, currentChunkSize, currentChunkSegments);
             if (yPosition === null) {
-                // console.warn(`Failed to get terrain height for object at ${desiredWorldX}, ${desiredWorldZ}. Skipping.`);
                 return null;
             }
         }
@@ -114,7 +103,6 @@ export async function populateChunk(
             const model = await loadFBXModel(modelPath, new THREE.Vector3(desiredWorldX, yPosition, desiredWorldZ), scene, scale);
             return model || null;
         } catch (error) {
-            // console.error(`Error loading model ${modelPath} at ${desiredWorldX}, ${yPosition}, ${desiredWorldZ}:`, error);
             return null;
         }
     }
@@ -149,7 +137,7 @@ export async function populateChunk(
         const cloudWorldX = chunkWorldX_center + cloudLocalX;
         const cloudLocalZ = (Math.random() - 0.5) * currentChunkSize;
         const cloudWorldZ = chunkWorldZ_center + cloudLocalZ;
-        const cloudWorldY = Math.random() * 50 + (TERRAIN_MAX_HEIGHT + 70); // Use TERRAIN_MAX_HEIGHT from settings
+        const cloudWorldY = Math.random() * 50 + (TERRAIN_MAX_HEIGHT + 70);
         const cloudModelPath = CLOUD_MODELS[Math.floor(Math.random() * CLOUD_MODELS.length)];
         const cloudScale = Math.random() * 0.05 + 0.08;
         modelPlacementPromises.push(placeModel(cloudModelPath, cloudWorldX, cloudWorldZ, cloudWorldY, cloudScale));

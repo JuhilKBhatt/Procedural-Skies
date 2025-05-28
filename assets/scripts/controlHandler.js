@@ -4,19 +4,17 @@ export class ControlHandler {
         this.airplane = airplane;
         this.keys = {};
 
-        // Store current throttle state locally in ControlHandler
-        this.currentThrottle = 0.0; // Initial throttle is 10% for takeoff
+        this.currentThrottle = 0.0;
         if (this.airplane && this.airplane.flightPhysics) {
-            this.currentThrottle = this.airplane.flightPhysics.throttle; // Sync with physics if already set
+            this.currentThrottle = this.airplane.flightPhysics.throttle;
         }
-        this.throttleStep = 0.01; // Smoother throttle adjustment
+        this.throttleStep = 0.01;
 
         this.bindEvents();
-        this.updateAirplane(); // Initialize controls (especially neutrals)
+        this.updateAirplane();
     }
 
     bindEvents() {
-        // Using arrow functions to preserve 'this' context
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
 
@@ -51,8 +49,7 @@ export class ControlHandler {
         this.currentThrottle = newThrottle;
         this.airplane.applyControl('throttle', this.currentThrottle);
 
-        // Update elevator (can be overridden by specific pitch keys if added)
-        // If 'w' or 's' are intended for direct pitch control:
+        // Update elevator
         if (this.keys['w']) {
             elevatorInput = 0.1; // Pitch up
         } else if (this.keys['s']) {
@@ -61,7 +58,7 @@ export class ControlHandler {
         this.airplane.applyControl('elevator', elevatorInput);
 
 
-        // Update yaw (rudder)
+        // Update yaw
         if (this.keys['a']) {
             yawInput = 0.05; // Yaw left
         } else if (this.keys['d']) {
@@ -69,10 +66,10 @@ export class ControlHandler {
         }
         this.airplane.applyControl('yaw', yawInput);
 
-        // Update roll (ailerons)
-        if (this.keys['q']) { // Changed from 'a' to 'q' as in original
+        // Update roll 
+        if (this.keys['q']) {
             aileronInput = 1; // Roll left
-        } else if (this.keys['e']) { // Changed from 'd' to 'e' as in original
+        } else if (this.keys['e']) {
             aileronInput = -1; // Roll right
         }
         this.airplane.applyControl('ailerons', aileronInput);

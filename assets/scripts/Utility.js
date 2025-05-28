@@ -1,4 +1,4 @@
-// Utility.js
+// assets/scripts/Utility.js
 import * as THREE from 'three';
 // cleanMaterial is already here and uses THREE
 

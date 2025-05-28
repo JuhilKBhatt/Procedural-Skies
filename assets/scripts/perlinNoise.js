@@ -1,4 +1,4 @@
-// perlinNoise.js
+// assets/scripts/perlinNoise.js
 
 // Standalone lerp function
 function lerp(t, a, b) {
@@ -6,8 +6,8 @@ function lerp(t, a, b) {
 }
 
 class PerlinNoise {
-    constructor(seed = 0) { // Default seed to 0 for consistent terrain, or allow it to be set
-        this.p = new Uint8Array(512); // Increased permutation table size for larger integer coordinates before repeating pattern
+    constructor(seed = 0) {
+        this.p = new Uint8Array(512);
         this.seed = seed === 0 ? Date.now() : seed;
         this._initializePermutationTable();
     }
@@ -49,8 +49,6 @@ class PerlinNoise {
     }
 
     noise3D(x, y, z) {
-        // Ensure positive coordinates for modulo arithmetic if necessary, though floor handles negatives.
-        // The & 255 operation will handle wrapping for the permutation table lookup.
         let X = Math.floor(x) & 255;
         let Y = Math.floor(y) & 255;
         let Z = Math.floor(z) & 255;
@@ -110,7 +108,7 @@ function generatePlainsNoise(x, y, z) {
 }
 
 function generateTerrainTypeNoise(x, y, z) {
-    return multiOctavePerlinNoise3D(x * 0.1, y * 0.1, z * 0.1, 3, 0.4, 2.0); // Slower changing noise for broader areas
+    return multiOctavePerlinNoise3D(x * 0.1, y * 0.1, z * 0.1, 3, 0.4, 2.0);
 }
 
 function generateRiverMaskNoise(x, y, z) {
@@ -124,10 +122,10 @@ function smoothstep(edge0, edge1, x) {
 }
 
 export function generateCombinedTerrain(x, y, z,
-    mountain_threshold = 0.6, // This might now represent a midpoint or upper bound of a blend zone
-    mountain_blend_range = 0.2, // How wide the transition zone is
+    mountain_threshold = 0.6,
+    mountain_blend_range = 0.2,
     river_threshold = 0.1,
-    river_blend_range = 0.05, // Transition zone for rivers
+    river_blend_range = 0.05,
     river_depth = 0.15) {
 
     const terrainType = generateTerrainTypeNoise(x, y, z);
@@ -140,7 +138,7 @@ export function generateCombinedTerrain(x, y, z,
     const mountain_lower_bound = mountain_threshold - mountain_blend_range / 2;
     const mountain_upper_bound = mountain_threshold + mountain_blend_range / 2;
 
-    // Calculate mountain influence (0 for pure plains, 1 for pure mountain)
+    // Calculate mountain influence
     let mountainInfluence;
     if (mountain_blend_range <= 0) { // Handle no blend range (hard switch)
         mountainInfluence = (terrainType >= mountain_threshold) ? 1.0 : 0.0;
