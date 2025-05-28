@@ -24,12 +24,6 @@ const worldPopSettings = {
     repopulateChunks: async () => { /* Implementation below */ }
 };
 
-const airplaneControlSettings = {
-    elevator: 0,   // Range for GUI: -0.1 to 0.1
-    ailerons: 0,   // Range for GUI: -1 to 1
-    yaw: 0         // Range for GUI: -0.05 to 0.05 (rudder)
-};
-
 const gui = new GUI();
 
 const throttleValueElement = document.getElementById('throttle-value');
@@ -110,18 +104,6 @@ let audioHandler;
 let firstUserInteraction = false;
 
 // --- GUI Setup ---
-const airplaneControlsFolder = gui.addFolder('Airplane Controls');
-airplaneControlsFolder.add(airplaneControlSettings, 'elevator', -0.1, 0.1, 0.001).name('Elevator (Pitch)').onChange(value => {
-    if (airplane && airplane.flightPhysics) airplane.applyControl('elevator', value);
-});
-airplaneControlsFolder.add(airplaneControlSettings, 'ailerons', -1, 1, 0.01).name('Ailerons (Roll)').onChange(value => {
-    if (airplane && airplane.flightPhysics) airplane.applyControl('ailerons', value);
-});
-airplaneControlsFolder.add(airplaneControlSettings, 'yaw', -0.05, 0.05, 0.001).name('Rudder (Yaw)').onChange(value => { // Adjusted range to match typical rudder input
-    if (airplane && airplane.flightPhysics) airplane.applyControl('yaw', value);
-});
-airplaneControlsFolder.open();
-
 const worldGenFolder = gui.addFolder('World Generation');
 worldGenFolder.add(worldGenSettings, 'TERRAIN_MAX_HEIGHT', 30, 300, 1).name('Max Height');
 worldGenFolder.add(worldGenSettings, 'TERRAIN_MIN_HEIGHT', -150, 0, 1).name('Min Height');
