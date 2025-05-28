@@ -1,6 +1,5 @@
 // main.js
 import * as THREE from 'three';
-import { OrbitControls } from 'https://unpkg.com/three@0.152.0/examples/jsm/controls/OrbitControls.js';
 import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
 import { ControlHandler } from './assets/scripts/controlHandler.js';
@@ -8,6 +7,24 @@ import * as CANNON from 'cannon-es';
 import { getChunkKey, cleanMaterial, updateTerrainChunks } from './assets/scripts/Utility.js';
 import { CameraHandler } from './assets/scripts/camera.js';
 import { AudioHandler } from './assets/scripts/audioHandler.js';
+import { GUI } from 'GUI';
+
+// --- GUI Settings Objects ---
+const worldGenSettings = {
+    TERRAIN_MAX_HEIGHT: 80,     // Default from original worldGeneration.js
+    TERRAIN_MIN_HEIGHT: -40,    // Default from original worldGeneration.js
+    NOISE_INPUT_SCALE: 0.007,   // Default from original worldGeneration.js
+    regenerateWorld: async () => { /* Implementation below */ }
+};
+
+const worldPopSettings = {
+    CLUSTERS_PER_CHUNK: 1,      // Default from original worldPopulate.js
+    OBJECTS_PER_CLUSTER: 5,     // Default from original worldPopulate.js
+    CLOUDS_PER_CHUNK: 2,        // Default from original worldPopulate.js
+    repopulateChunks: async () => { /* Implementation below */ }
+};
+
+const gui = new GUI();
 
 const throttleValueElement = document.getElementById('throttle-value');
 const throttleBarElement = document.getElementById('throttle-bar');
@@ -18,7 +35,6 @@ const aiRollIndicatorElement = document.getElementById('ai-roll-indicator'); // 
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, CHUNK_SIZE * 2, CHUNK_SIZE * 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.shadowMap.enabled = true;
@@ -87,6 +103,75 @@ let controlHandler;
 let audioHandler;
 let firstUserInteraction = false;
 
+// --- GUI Setup ---
+const worldGenFolder = gui.addFolder('World Generation');
+worldGenFolder.add(worldGenSettings, 'TERRAIN_MAX_HEIGHT', 30, 300, 1).name('Max Height');
+worldGenFolder.add(worldGenSettings, 'TERRAIN_MIN_HEIGHT', -150, 0, 1).name('Min Height');
+worldGenFolder.add(worldGenSettings, 'NOISE_INPUT_SCALE', 0.0005, 0.03, 0.0001).name('Noise Scale');
+worldGenFolder.add(worldGenSettings, 'regenerateWorld').name('Regenerate World');
+worldGenFolder.open();
+
+const worldPopFolder = gui.addFolder('World Population');
+worldPopFolder.add(worldPopSettings, 'CLUSTERS_PER_CHUNK', 0, 10, 1).name('Terrain Clusters/Chunk');
+worldPopFolder.add(worldPopSettings, 'OBJECTS_PER_CLUSTER', 0, 20, 1).name('Objects/Cluster');
+worldPopFolder.add(worldPopSettings, 'CLOUDS_PER_CHUNK', 0, 10, 1).name('Clouds/Chunk');
+worldPopFolder.add(worldPopSettings, 'repopulateChunks').name('Repopulate Chunks');
+worldPopFolder.open();
+
+// --- World Regeneration and Repopulation Functions ---
+worldGenSettings.regenerateWorld = async () => {
+    console.log("Regenerating world with settings:", worldGenSettings);
+    for (const [key, chunkData] of activeChunks) {
+        scene.remove(chunkData.mesh);
+        if (chunkData.mesh.geometry) chunkData.mesh.geometry.dispose();
+        if (chunkData.mesh.material) cleanMaterial(chunkData.mesh.material);
+        if (chunkData.body) world.removeBody(chunkData.body);
+        if (chunkData.populatedObjects) {
+            chunkData.populatedObjects.forEach(obj => {
+                scene.remove(obj);
+                obj.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) cleanMaterial(child.material);
+                    }
+                });
+            });
+        }
+        activeChunks.delete(key);
+    }
+    console.log("Cleared all active chunks.");
+    lastPlayerChunkX = null;
+    lastPlayerChunkZ = null;
+
+    if (airplane && airplane.physicsBody) {
+        console.log("Forcing terrain chunk update after regeneration...");
+        try {
+            const newChunkCoords = await updateTerrainChunks({
+                airplane, activeChunks,
+                currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+                scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+                generateTerrainChunk,
+                worldGenSettings, // Pass new settings
+                worldPopSettings  // Pass new settings
+            });
+            lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
+            lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
+            console.log("World regeneration complete.");
+        } catch (error) {
+            console.error("Error during forced chunk update for regeneration:", error);
+        }
+    } else {
+        console.warn("Airplane not ready, cannot trigger chunk regeneration.");
+    }
+};
+
+worldPopSettings.repopulateChunks = async () => {
+    console.log("Repopulating chunks with settings:", worldPopSettings);
+    console.warn("Current 'Repopulate Chunks' triggers a full world regeneration. For optimized repopulation, further decoupling of populateChunk is needed.");
+    await worldGenSettings.regenerateWorld(); // Uses the full regeneration logic
+};
+
+
 try {
     audioHandler = new AudioHandler('./assets/audio/engineLoop.mp3');
 } catch (error) {
@@ -121,30 +206,25 @@ if (airplane) {
         }
     });
 
-    try {
+try {
         controlHandler = new ControlHandler(airplane);
     } catch (error) {
         console.error("Error during new ControlHandler():", error);
     }
 
     if (airplane.physicsBody) {
-        console.log("Attempting initial chunk load (inside airplane check)...");
-        updateTerrainChunks({ // Call the imported function
-            airplane,
-            activeChunks,
-            currentLastPlayerChunkX: lastPlayerChunkX,
-            currentLastPlayerChunkZ: lastPlayerChunkZ,
-            scene,
-            world,
-            terrainMaterial,
-            light,
-            CHUNK_SIZE,
-            VIEW_DISTANCE_CHUNKS,
-            generateTerrainChunk // Pass the function
+        console.log("Attempting initial chunk load...");
+        updateTerrainChunks({
+            airplane, activeChunks,
+            currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+            scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+            generateTerrainChunk,
+            worldGenSettings, // Pass initial settings
+            worldPopSettings  // Pass initial settings
         }).then(newChunkCoords => {
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
-        }).catch(error => console.error("Error during initial chunk load (inside airplane check):", error));
+        }).catch(error => console.error("Error during initial chunk load:", error));
     } else {
         console.warn("Skipping initial chunk load because airplane.physicsBody is missing.");
         cameraHandler.setFallbackMode(new THREE.Vector3(0, CHUNK_SIZE * 0.25, 50));
@@ -212,22 +292,23 @@ async function animate() { // Make animate async if it directly awaits updateTer
 
             // Attitude Indicator Update
             if (attitudeIndicatorElement && aiGroundElement && aiRollIndicatorElement) {
-                // Get Euler angles from the airplane's quaternion
-                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ'); // Common order for airplanes
+                const euler = new THREE.Euler().setFromQuaternion(airplane.quaternion, 'YXZ');
 
                 let pitch = euler.x; // Radians
                 let roll = euler.z;  // Radians
 
+                // Adjust pitch for the visual
                 const pitchDegrees = THREE.MathUtils.radToDeg(pitch);
-                const pitchTranslationPercentage = (pitchDegrees / 90) * 50; // Max 50% translation
+                const pitchTranslationPercentage = (pitchDegrees / 90) * 50;
                 const clampedPitchTranslation = Math.max(-50, Math.min(50, pitchTranslationPercentage));
 
-                // Roll: Rotate the ground element. Negative roll in THREE.js (left wing down) means positive CSS rotation.
+                // Roll
                 const rollDegrees = THREE.MathUtils.radToDeg(roll);
 
                 // Apply transformations
                 aiGroundElement.style.transform = `translateY(${clampedPitchTranslation}%) rotate(${-rollDegrees}deg)`;
                 aiRollIndicatorElement.style.transform = `translate(-50%, -50%) rotate(${-rollDegrees}deg)`;
+
             }
         }
 
@@ -243,17 +324,12 @@ async function animate() { // Make animate async if it directly awaits updateTer
         // Call the imported function and update lastPlayerChunkX/Z
         try {
             const newChunkCoords = await updateTerrainChunks({
-                airplane,
-                activeChunks,
-                currentLastPlayerChunkX: lastPlayerChunkX,
-                currentLastPlayerChunkZ: lastPlayerChunkZ,
-                scene,
-                world,
-                terrainMaterial,
-                light,
-                CHUNK_SIZE,
-                VIEW_DISTANCE_CHUNKS,
-                generateTerrainChunk
+                airplane, activeChunks,
+                currentLastPlayerChunkX: lastPlayerChunkX, currentLastPlayerChunkZ: lastPlayerChunkZ,
+                scene, world, terrainMaterial, light, CHUNK_SIZE, VIEW_DISTANCE_CHUNKS,
+                generateTerrainChunk,
+                worldGenSettings, // Pass current settings
+                worldPopSettings  // Pass current settings
             });
             lastPlayerChunkX = newChunkCoords.lastPlayerChunkX;
             lastPlayerChunkZ = newChunkCoords.lastPlayerChunkZ;
