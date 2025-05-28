@@ -1,4 +1,4 @@
-// main.js
+// main.js (modifications highlighted)
 import * as THREE from 'three';
 import { generateTerrainChunk, CHUNK_SIZE, CHUNK_SEGMENTS } from './assets/scripts/worldGeneration.js';
 import { createAirplane } from './assets/scripts/airplane.js';
@@ -103,6 +103,11 @@ let controlHandler;
 let audioHandler;
 let firstUserInteraction = false;
 
+// --- Physics interpolation variables ---
+let lastPhysicsUpdate = 0;
+const fixedTimeStep = 1 / 60;
+const MAX_SUBSTEPS = 10; // Prevent spiral of death if deltaTime is huge
+
 // --- GUI Setup ---
 const worldGenFolder = gui.addFolder('World Generation');
 worldGenFolder.add(worldGenSettings, 'TERRAIN_MAX_HEIGHT', 30, 300, 1).name('Max Height');
@@ -191,8 +196,18 @@ if (airplane) {
         airplane.physicsBody.material = airplaneMaterial;
         airplane.physicsBody.position.set(0, CHUNK_SIZE * 0.5, 0);
         airplane.physicsBody.wakeUp();
+
+        // Ensure initial previous values are also set correctly
+        airplane.physicsBody.previousPosition.copy(airplane.physicsBody.position);
+        airplane.physicsBody.previousQuaternion.copy(airplane.physicsBody.quaternion); // <<< Keep this!
+
+        scene.add(airplane);
+        world.addBody(airplane.physicsBody);
+
+        // Initial copy for the Three.js object from the physics body
         airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        airplane.quaternion.copy(airplane.physicsBody.quaternion); // <<< Ensure this copy happens
+
         cameraHandler.setTarget(airplane);
     } else {
         console.error("Airplane created, but airplane.physicsBody is missing!");
@@ -254,28 +269,60 @@ window.addEventListener('keydown', handleFirstInteractionForAudio, { capture: tr
 window.addEventListener('mousedown', handleFirstInteractionForAudio, { capture: true });
 window.addEventListener('touchstart', handleFirstInteractionForAudio, { capture: true }); // For touch devices
 
-async function animate() { // Make animate async if it directly awaits updateTerrainChunks
+async function animate() {
     requestAnimationFrame(animate);
-    const deltaTime = clock.getDelta();
-    const fixedTimeStep = 1 / 60;
+    const deltaTime = clock.getDelta(); // Time since last frame
+
+    // --- Physics Update Loop (Fixed Timestep) ---
+    // Accumulate time to ensure physics steps are consistent
+    lastPhysicsUpdate += deltaTime;
+    let numSubsteps = 0;
+    while (lastPhysicsUpdate >= fixedTimeStep && numSubsteps < MAX_SUBSTEPS) {
+        world.step(fixedTimeStep);
+        lastPhysicsUpdate -= fixedTimeStep;
+        numSubsteps++;
+    }
+
+    // This handles the case where no physics steps occurred but rendering still happens
+    const interpolationFactor = lastPhysicsUpdate / fixedTimeStep;
 
     if (controlHandler) {
         try {
-            controlHandler.updateAirplane();
+            controlHandler.updateAirplane(); // This typically applies forces/updates for the *next* physics step
         } catch (error) {
             console.error("Error in controlHandler.update():", error);
         }
     }
 
-    world.step(fixedTimeStep, deltaTime, 3);
-
     if (airplane && airplane.physicsBody) {
-        airplane.position.copy(airplane.physicsBody.position);
-        airplane.quaternion.copy(airplane.physicsBody.quaternion);
+        // Interpolate position and quaternion for smooth rendering
+        airplane.position.lerpVectors(airplane.physicsBody.previousPosition, airplane.physicsBody.position, interpolationFactor);
+
+        // Create temporary quaternions for the previous and current physics state
+        const prevQuat = new THREE.Quaternion(
+            airplane.physicsBody.previousQuaternion.x,
+            airplane.physicsBody.previousQuaternion.y,
+            airplane.physicsBody.previousQuaternion.z,
+            airplane.physicsBody.previousQuaternion.w
+        );
+        const currQuat = new THREE.Quaternion(
+            airplane.physicsBody.quaternion.x,
+            airplane.physicsBody.quaternion.y,
+            airplane.physicsBody.quaternion.z,
+            airplane.physicsBody.quaternion.w
+        );
+
+        // Perform SLERP into a temporary quaternion, then normalize and copy
+        const interpolatedQuat = new THREE.Quaternion();
+        interpolatedQuat.slerpQuaternions(prevQuat, currQuat, interpolationFactor);
+        interpolatedQuat.normalize(); // Explicitly normalize the result
+
+        // Apply the normalized, interpolated quaternion to the Three.js airplane object
+        airplane.quaternion.copy(interpolatedQuat);
 
         if (typeof airplane.update === 'function') {
             try {
-                airplane.update(deltaTime);
+                airplane.update(deltaTime); // For visual-only updates on the airplane mesh
             } catch (error) {
                 console.error("Error in airplane.update():", error);
             }

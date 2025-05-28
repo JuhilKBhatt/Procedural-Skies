@@ -27,8 +27,6 @@ export function createAirplane(scene, world) {
     });
 
     // Adjust shapes to better fit a typical airplane.
-    // Cannon.js Box takes half-extents (half-width, half-height, half-depth).
-    // Assuming: X is wingspan, Y is height, Z is length for the airplane model.
     const fuselageExtents = new CANNON.Vec3(1.5, 1.5, 7); // width/2, height/2, length/2
     airplaneBody.addShape(new CANNON.Box(fuselageExtents), new CANNON.Vec3(0, 0, 0)); // Centered fuselage
 
@@ -107,10 +105,6 @@ export function createAirplane(scene, world) {
         // Pass the current throttle from flightPhysics to the animation
         animateAirplaneEngine(this, this.flightPhysics.throttle);
     };
-
-    //airplane.animateAilerons = function() {
-    //    animateAirplaneAilerons(this, this.targetLeftAileronRotation, this.targetRightAileronRotation);
-    //};
 
     scene.add(airplane);
     return airplane;
