@@ -1,6 +1,6 @@
 {
   "title": "3D Terrain Generator",
-  "description": "A procedural terrain generator built using Three.js & A flying airplane with flight pyhsic .",
+  "description": "A procedural terrain generator built using Three.js & A flying airplane with flight physics.",
   "language": ["JavaScript"],
   "liveDemo": "",
   "images": [
