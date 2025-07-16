@@ -1,13 +1,13 @@
 {
-  "title": "3D Terrain Generator",
+  "title": "Procedural Skies",
   "description": "A procedural terrain generator built using Three.js & A flying airplane with flight physics.",
-  "language": ["JavaScript"],
+  "language": ["JavaScript", "Three.js"],
   "liveDemo": "",
   "images": [
     "https://res.cloudinary.com/dmj4ggkjq/image/upload/v1752485929/Procedural-Skies-1.png",
     "https://res.cloudinary.com/dmj4ggkjq/image/upload/v1752485939/Procedural-Skies-2.png"
   ],
-  "videoDemo": "",
+  "videoDemo": "https://res.cloudinary.com/dmj4ggkjq/video/upload/v1752664155/Procedural-Skies-Video_rxkioy.mov",
   "Priority": 1,
   "type": "Solo",
   "version": "Beta",
