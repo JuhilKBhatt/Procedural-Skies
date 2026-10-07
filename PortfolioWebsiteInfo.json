@@ -1,7 +1,20 @@
 {
   "title": "Procedural Skies",
-  "description": "A procedural terrain generator built using Three.js & A flying airplane with flight physics.",
-  "language": ["JavaScript", "Three.js"],
+  "description": "An interactive 3D flight simulation and procedural terrain generation web application built with Three.js and Cannon-es, featuring dynamic multi-octave Perlin noise terrain chunking, real-time aerodynamic flight physics, and in-cockpit HUD instrumentation.",
+  "techStack": {
+    "Frontend": [
+      "JavaScript",
+      "Three.js",
+      "HTML5",
+      "CSS3"
+    ],
+    "Backend": [
+      "Node.js"
+    ],
+    "DevSecOps": [
+      "GitHub"
+    ]
+  },
   "liveDemo": "",
   "images": [
     "https://res.cloudinary.com/dmj4ggkjq/image/upload/v1752485929/Procedural-Skies-1.png",
@@ -9,7 +22,16 @@
   ],
   "videoDemo": "https://res.cloudinary.com/dmj4ggkjq/video/upload/v1752664155/Procedural-Skies-Video_rxkioy.mov",
   "Priority": 1,
+  "category": "Web App",
   "type": "Solo",
   "version": "Beta",
+  "versionNumber": "0.1.0",
+  "Highlights": [
+    "Infinite procedural terrain chunk generation utilizing multi-octave 3D Perlin noise with dynamic elevation-based biome vertex coloring",
+    "Real-time 6DoF aerodynamic flight physics simulation powered by Cannon-es modeling lift, drag, engine thrust, and control surface torques",
+    "Interactive cockpit HUD instrumentation featuring dynamic throttle gauge, responsive attitude indicator (artificial horizon), and lil-gui configuration controls",
+    "Procedural world population system placing clustered natural assets (trees, rocks, clouds) with distance-based chunk pooling and garbage collection",
+    "Dynamic Web Audio API sound synthesis engine modulating aircraft engine frequency, pitch, and gain relative to throttle input"
+  ],
   "Visibilty": true
 }
